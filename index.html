@@ -725,11 +725,31 @@ const FONT_KEY_MAP = {
   devilleg: {family:'SweiDevilLeg', label:'獅尾惡腿黑體', url:'./fonts/SweiDevilLegCJKtc-Regular.ttf', fallback:'sans-serif'},
   chaohua: {family:'ChaoHuaBiaoTi', label:'朝華標題', url:'./fonts/ChaoHuaBiaoTi.ttf', fallback:'serif'},
   maokenmosha: {family:'MaoKenMoSha', label:'貓啃磨沙', url:'./fonts/貓啃磨沙.otf', fallback:'sans-serif'},
-  qingsong: {family:'QingSongHandwriting', label:'清松手寫體', url:'./fonts/qingsong-handwriting.ttf', fallback:'cursive'}
+  qingsong: {family:'QingSongHandwriting', label:'清松手寫體', url:'./fonts/qingsong-handwriting.ttf', fallback:'sans-serif'}
 };
 let curFontKey = 'genkai';
 let loadedFontState = {};
 let fontLoadPromises = {};
+let fontDataCache = {};
+
+function arrayBufferToBase64(buffer) {
+  var binary = '';
+  var bytes = new Uint8Array(buffer);
+  var chunk = 0x8000;
+  for (var i = 0; i < bytes.length; i += chunk) {
+    var sub = bytes.subarray(i, i + chunk);
+    binary += String.fromCharCode.apply(null, sub);
+  }
+  return btoa(binary);
+}
+
+function mimeFromUrl(url) {
+  var clean = (url || '').split('?')[0].toLowerCase();
+  if (clean.indexOf('.otf') > -1) return 'font/otf';
+  if (clean.indexOf('.woff2') > -1) return 'font/woff2';
+  if (clean.indexOf('.woff') > -1) return 'font/woff';
+  return 'font/truetype';
+}
 
 function setFontButtonState(key, state, text) {
   const btn = document.getElementById('fb-' + key);
@@ -761,35 +781,57 @@ function getCurrentFontDef() {
 
 function getSvgFontFaceStyle() {
   const def = getCurrentFontDef();
-  return '@font-face{font-family:"' + def.family + '";src:url("' + def.url + '");font-display:block;} text{font-family:"' + def.family + '",' + def.fallback + ';}';
+  const cached = fontDataCache[curFontKey];
+  if (cached && cached.dataUrl) {
+    return '@font-face{font-family:"' + def.family + '";src:url("' + cached.dataUrl + '");font-display:block;} text{font-family:"' + def.family + '",' + def.fallback + ';}';
+  }
+  // 沒有真的抓到字體資料時，不假裝套用該字體，避免「未載入卻看起來有變」
+  return 'text{font-family:"Noto Sans TC",sans-serif;}';
 }
 
 function ensureFontLoadedByKey(key) {
   const def = FONT_KEY_MAP[key] || FONT_KEY_MAP.genkai;
-  if (loadedFontState[key] === 'loaded') return Promise.resolve(true);
+  if (loadedFontState[key] === 'loaded' && fontDataCache[key] && fontDataCache[key].dataUrl) return Promise.resolve(true);
   if (fontLoadPromises[key]) return fontLoadPromises[key];
   setFontButtonState(key, 'loading', '載入中');
   fontLoadPromises[key] = new Promise(function(resolve) {
-    if (!window.FontFace || !document.fonts) {
-      loadedFontState[key] = 'unknown';
-      setFontButtonState(key, 'loading', '待測');
+    if (!window.fetch) {
+      loadedFontState[key] = 'missing';
+      setFontButtonState(key, 'missing', '未載入');
       resolve(false);
       return;
     }
-    const face = new FontFace(def.family, 'url("' + def.url + '")');
-    face.load().then(function(loadedFace) {
-      document.fonts.add(loadedFace);
-      return document.fonts.ready;
-    }).then(function() {
-      loadedFontState[key] = 'loaded';
-      setFontButtonState(key, 'loaded', '已載入');
-      resolve(true);
-    }).catch(function(err) {
-      loadedFontState[key] = 'missing';
-      setFontButtonState(key, 'missing', '未載入');
-      console.warn('字體未載入：' + def.label + ' ' + def.url, err);
-      resolve(false);
-    });
+    fetch(def.url, { cache: 'reload' })
+      .then(function(resp) {
+        if (!resp.ok) throw new Error('HTTP ' + resp.status + ' ' + def.url);
+        return resp.arrayBuffer();
+      })
+      .then(function(buffer) {
+        var mime = mimeFromUrl(def.url);
+        var b64 = arrayBufferToBase64(buffer);
+        var dataUrl = 'data:' + mime + ';base64,' + b64;
+        fontDataCache[key] = { dataUrl: dataUrl, mime: mime, size: buffer.byteLength };
+        if (window.FontFace && document.fonts) {
+          var face = new FontFace(def.family, 'url("' + dataUrl + '")');
+          return face.load().then(function(loadedFace) {
+            document.fonts.add(loadedFace);
+            return document.fonts.ready;
+          });
+        }
+        return true;
+      })
+      .then(function() {
+        loadedFontState[key] = 'loaded';
+        setFontButtonState(key, 'loaded', '已載入');
+        resolve(true);
+      })
+      .catch(function(err) {
+        delete fontDataCache[key];
+        loadedFontState[key] = 'missing';
+        setFontButtonState(key, 'missing', '未載入');
+        console.warn('字體未載入：' + def.label + ' ' + def.url, err);
+        resolve(false);
+      });
   });
   return fontLoadPromises[key];
 }
@@ -808,8 +850,9 @@ function setFont(key, btn) {
   const def = FONT_KEY_MAP[key] || FONT_KEY_MAP.genkai;
   curFontKey = key;
   curFont = def.family;
+  // 先顯示目前可用狀態，真正字體資料抓到後再重畫，避免假變形。
   render();
-  ensureFontLoadedByKey(key).then(function(){ render(); });
+  ensureFontLoadedByKey(key).then(function(ok){ render(); });
 }
 
 function bootFontStatusCheck() {
@@ -888,15 +931,18 @@ function arrayBufferToBase64(buffer) {
 }
 async function getExternalFontCSS() {
   let css = '';
-  for (const font of EXTERNAL_FONT_FILES) {
+  for (const font of EXPORT_FONTS) {
+    let key = null;
+    for (const k in FONT_KEY_MAP) {
+      if (FONT_KEY_MAP[k].family === font.family) key = k;
+    }
     try {
-      if (!externalFontCache[font.url]) {
-        const res = await fetch(font.url);
-        if (!res.ok) throw new Error('font fetch failed: ' + font.url);
-        const buf = await res.arrayBuffer();
-        externalFontCache[font.url] = arrayBufferToBase64(buf);
+      if (key && (!fontDataCache[key] || !fontDataCache[key].dataUrl)) {
+        await ensureFontLoadedByKey(key);
       }
-      css += `@font-face{font-family:'${font.family}';src:url('data:${font.mime};base64,${externalFontCache[font.url]}');}`;
+      if (key && fontDataCache[key] && fontDataCache[key].dataUrl) {
+        css += `@font-face{font-family:'${font.family}';src:url('${fontDataCache[key].dataUrl}');font-display:block;}`;
+      }
     } catch (err) {
       console.warn('External font export skipped:', font.url, err);
     }
@@ -1131,8 +1177,9 @@ function render(){
 function makeChar(ch,sz,alpha,depth){
   const pad=sz*0.2,W=sz+pad*2,H=sz*1.25+pad*2,cx=W/2,cy=H/2,tY=cy+sz*0.38;
   const ff=getSvgFontFamily();
+  const ffAttr=ff.replace(/&/g,"&amp;").replace(/\"/g,"&quot;");
   let dh='';
-  for(let i=depth;i>=1;i--){dh+=`<text x="${cx+i*1.2}" y="${tY+i*1.2}" text-anchor="middle" font-family="${ff}" font-size="${sz}px" fill="${getDepthColor(i,depth,alpha)}">${ch}</text>`;}
+  for(let i=depth;i>=1;i--){dh+=`<text x="${cx+i*1.2}" y="${tY+i*1.2}" text-anchor="middle" font-family="${ffAttr}" font-size="${sz}px" fill="${getDepthColor(i,depth,alpha)}">${ch}</text>`;}
   const id='j'+Math.random().toString(36).slice(2,8);
   const ic=getInnerColor();
   const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
@@ -1149,20 +1196,20 @@ function makeChar(ch,sz,alpha,depth){
         <stop offset="100%" stop-color="rgba(255,255,255,0.28)"/>
       </linearGradient>
       <clipPath id="clip${id}">
-        <text x="${cx}" y="${tY}" text-anchor="middle" font-family="${ff}" font-size="${sz}px">${ch}</text>
+        <text x="${cx}" y="${tY}" text-anchor="middle" font-family="${ffAttr}" font-size="${sz}px">${ch}</text>
       </clipPath>
       <filter id="sb${id}"><feGaussianBlur stdDeviation="2"/></filter>
     </defs>
     ${dh}
-    <text x="${cx}" y="${tY}" text-anchor="middle" font-family="${ff}" font-size="${sz}px" fill="url(#bg${id})">${ch}</text>
+    <text x="${cx}" y="${tY}" text-anchor="middle" font-family="${ffAttr}" font-size="${sz}px" fill="url(#bg${id})">${ch}</text>
     <rect width="${W}" height="${H}" fill="${ic}" clip-path="url(#clip${id})" filter="url(#sb${id})"/>
     <ellipse cx="${cx*0.58}" cy="${cy*0.46}" rx="${sz*0.32}" ry="${sz*0.18}" fill="url(#hi${id})" clip-path="url(#clip${id})"/>
     <ellipse cx="${cx*0.46}" cy="${cy*0.34}" rx="${sz*0.08}" ry="${sz*0.05}" fill="rgba(255,255,255,0.95)" clip-path="url(#clip${id})" filter="url(#sb${id})">
       <animate attributeName="opacity" values="0.95;0.6;0.95" dur="2.8s" repeatCount="indefinite"/>
     </ellipse>
     <ellipse cx="${cx*1.44}" cy="${cy*1.6}" rx="${sz*0.05}" ry="${sz*0.03}" fill="rgba(255,255,255,0.32)" clip-path="url(#clip${id})"/>
-    <text x="${cx}" y="${tY}" text-anchor="middle" font-family="${ff}" font-size="${sz}px" fill="url(#rim${id})">${ch}</text>
-    <text x="${cx}" y="${tY}" text-anchor="middle" font-family="${ff}" font-size="${sz}px" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.8">${ch}</text>
+    <text x="${cx}" y="${tY}" text-anchor="middle" font-family="${ffAttr}" font-size="${sz}px" fill="url(#rim${id})">${ch}</text>
+    <text x="${cx}" y="${tY}" text-anchor="middle" font-family="${ffAttr}" font-size="${sz}px" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.8">${ch}</text>
   </svg>`;
   const div=document.createElement('div');
   div.className='jelly-char';
