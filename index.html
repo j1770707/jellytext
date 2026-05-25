@@ -850,22 +850,38 @@ function arrayBufferToBase64(buffer) {
   }
   return btoa(binary);
 }
+// 從 curFont（例如 "'Cubic11',sans-serif"）抽出第一個 family 名稱
+function getActiveFontFamily() {
+  const m = curFont.match(/'([^']+)'/);
+  return m ? m[1] : null;
+}
+
+// 帶逾時的 fetch，避免單一字型卡住整個匯出
+function fetchWithTimeout(url, ms) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('font fetch timeout: ' + url)), ms);
+    fetch(url).then(res => { clearTimeout(t); resolve(res); })
+              .catch(err => { clearTimeout(t); reject(err); });
+  });
+}
+
+// 只抓「目前選用」的那一個字型，其餘不抓 → 秒匯出
 async function getExternalFontCSS() {
-  let css = '';
-  for (const font of EXTERNAL_FONT_FILES) {
-    try {
-      if (!externalFontCache[font.url]) {
-        const res = await fetch(font.url);
-        if (!res.ok) throw new Error('font fetch failed: ' + font.url);
-        const buf = await res.arrayBuffer();
-        externalFontCache[font.url] = arrayBufferToBase64(buf);
-      }
-      css += `@font-face{font-family:'${font.family}';src:url('data:${font.mime};base64,${externalFontCache[font.url]}') format('${font.format}');}`;
-    } catch (err) {
-      console.warn('External font export skipped:', font.url, err);
+  const activeFamily = getActiveFontFamily();
+  const font = EXTERNAL_FONT_FILES.find(f => f.family === activeFamily);
+  if (!font) return '';
+  try {
+    if (!externalFontCache[font.url]) {
+      const res = await fetchWithTimeout(font.url, 12000);
+      if (!res.ok) throw new Error('font fetch failed: ' + font.url);
+      const buf = await res.arrayBuffer();
+      externalFontCache[font.url] = arrayBufferToBase64(buf);
     }
+    return `@font-face{font-family:'${font.family}';src:url('data:${font.mime};base64,${externalFontCache[font.url]}') format('${font.format}');}`;
+  } catch (err) {
+    console.warn('External font export skipped:', font.url, err);
+    return '';
   }
-  return css;
 }
 
 // ── Export ────────────────────────────────────────────
