@@ -463,6 +463,18 @@ input[type=color] {
   #canvasWrap{ min-height:280px; }
 }
 
+
+@font-face{font-family:'MaoKenAssortedSansTC';src:url('./fonts/貓啃.otf') format('opentype');font-display:block;}
+@font-face{font-family:'Cubic11';src:url('./fonts/cubic-11.ttf') format('truetype');font-display:block;}
+@font-face{font-family:'YuanJieMingChao';src:url('./fonts/genkai-mincho.ttf') format('truetype');font-display:block;}
+@font-face{font-family:'MantouSans';src:url('./fonts/MantouSans-Regular.ttf') format('truetype');font-display:block;}
+@font-face{font-family:'GenYoMincho';src:url('./fonts/GenYoMincho-Regular.ttf') format('truetype');font-display:block;}
+@font-face{font-family:'BoutiqueBitmap9x9';src:url('./fonts/BoutiqueBitmap9x9.ttf') format('truetype');font-display:block;}
+@font-face{font-family:'SweiDevilLeg';src:url('./fonts/SweiDevilLegCJKtc-Regular.ttf') format('truetype');font-display:block;}
+@font-face{font-family:'ChaoHuaBiaoTi';src:url('./fonts/ChaoHuaBiaoTi.ttf') format('truetype');font-display:block;}
+@font-face{font-family:'MaoKenMoSha';src:url('./fonts/貓啃磨沙.otf') format('opentype');font-display:block;}
+@font-face{font-family:'QingSongHandwriting';src:url('./fonts/qingsong-handwriting.ttf') format('truetype');font-display:block;}
+
 </style>
 </head>
 <body>
@@ -740,7 +752,16 @@ function getFontCSSFamily() {
 
 function getSvgFontFamily() {
   const def = FONT_KEY_MAP[curFontKey] || FONT_KEY_MAP.genkai;
-  return def.family + ', ' + def.fallback;
+  return def.family;
+}
+
+function getCurrentFontDef() {
+  return FONT_KEY_MAP[curFontKey] || FONT_KEY_MAP.genkai;
+}
+
+function getSvgFontFaceStyle() {
+  const def = getCurrentFontDef();
+  return '@font-face{font-family:"' + def.family + '";src:url("' + def.url + '");font-display:block;} text{font-family:"' + def.family + '",' + def.fallback + ';}';
 }
 
 function ensureFontLoadedByKey(key) {
@@ -1116,6 +1137,7 @@ function makeChar(ch,sz,alpha,depth){
   const ic=getInnerColor();
   const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
     <defs>
+      <style>${getSvgFontFaceStyle()}</style>
       <linearGradient id="bg${id}" x1="0" y1="1" x2="0.3" y2="0">${getStops(alpha)}</linearGradient>
       <linearGradient id="hi${id}" x1="0.08" y1="0.05" x2="0.65" y2="0.9">
         <stop offset="0%" stop-color="rgba(255,255,255,0.88)"/>
