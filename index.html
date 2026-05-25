@@ -12,33 +12,18 @@
   font-display: block;
 }
 @font-face {
-  font-family: 'YuanJieMingChao';
-  src: url('https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/genkai-mincho.ttf') format('truetype');
-  font-display: block;
-}
-@font-face {
   font-family: 'MantouSans';
   src: url('https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/MantouSans-Regular.ttf') format('truetype');
   font-display: block;
 }
 @font-face {
-  font-family: 'GenYoMincho';
-  src: url('https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/GenYoMincho-Regular.ttf') format('truetype');
-  font-display: block;
-}
-@font-face {
-  font-family: 'BoutiqueBitmap9x9';
-  src: url('https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/BoutiqueBitmap9x9.ttf') format('truetype');
-  font-display: block;
-}
-@font-face {
-  font-family: 'ChaoHuaBiaoTi';
-  src: url('https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/ChaoHuaBiaoTi.ttf') format('truetype');
-  font-display: block;
-}
-@font-face {
   font-family: 'MaoKenMoSha';
   src: url('https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/MaoKenMoSha.woff2') format('woff2');
+  font-display: block;
+}
+@font-face {
+  font-family: 'HongLeiBanShu';
+  src: url('https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/HongLeiBanShu.ttf') format('truetype');
   font-display: block;
 }
 @font-face {
@@ -202,10 +187,14 @@ body::after {
 }
 #canvas.has-mockup { background: transparent !important; }
 #text-block {
+  transform-origin: center center;
   display: flex; flex-direction: row-reverse;
   align-items: flex-start; justify-content: center;
   flex-wrap: wrap; gap: 8px;
 }
+/* 橫書模式 */
+#text-block.horizontal { flex-direction: column; align-items: center; }
+#text-block.horizontal .col { flex-direction: row; align-items: center; }
 .col { display:flex; flex-direction:column; align-items:center; animation:float 4s ease-in-out infinite; }
 @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 .jelly-char{display:block;animation:jellywobble 3s ease-in-out infinite;cursor:pointer;}
@@ -513,6 +502,11 @@ input[type=color] {
         <button class="step-btn" onclick="setStep(10,this)">10px</button>
         <button class="step-btn" onclick="setStep(20,this)">20px</button>
       </div>
+      <div class="step-row">
+        <span class="step-label">排版</span>
+        <button class="step-btn on" id="dirV" onclick="setDirection('v',this)">直書</button>
+        <button class="step-btn" id="dirH" onclick="setDirection('h',this)">橫書</button>
+      </div>
       <div class="pos-grid">
         <div></div>
         <button class="pos-btn" onclick="move(0,-step)">↑ 上</button>
@@ -556,29 +550,17 @@ input[type=color] {
           <span class="fp" style="font-family:'Cubic11',sans-serif;">永</span>
           <span class="fn">俐方體 11 號</span>
         </button>
-        <button class="font-btn" id="fb-genkai" onclick="setFont('genkai',this)">
-          <span class="fp" style="font-family:'YuanJieMingChao',serif;">永</span>
-          <span class="fn">源界明朝</span>
-        </button>
         <button class="font-btn" id="fb-mantou" onclick="setFont('mantou',this)">
           <span class="fp" style="font-family:'MantouSans',sans-serif;">永</span>
           <span class="fn">饅頭黑體</span>
         </button>
-        <button class="font-btn" id="fb-genyo" onclick="setFont('genyo',this)">
-          <span class="fp" style="font-family:'GenYoMincho',serif;">永</span>
-          <span class="fn">源樣明體</span>
-        </button>
-        <button class="font-btn" id="fb-bitmap9" onclick="setFont('bitmap9',this)">
-          <span class="fp" style="font-family:'BoutiqueBitmap9x9',monospace;">永</span>
-          <span class="fn">精品點陣 9×9</span>
-        </button>
-        <button class="font-btn" id="fb-chaohua" onclick="setFont('chaohua',this)">
-          <span class="fp" style="font-family:'ChaoHuaBiaoTi',serif;">永</span>
-          <span class="fn">朝華標題</span>
-        </button>
         <button class="font-btn" id="fb-maokenmosha" onclick="setFont('maokenmosha',this)">
           <span class="fp" style="font-family:'MaoKenMoSha',sans-serif;">永</span>
           <span class="fn">貓啃磨沙</span>
+        </button>
+        <button class="font-btn" id="fb-honglei" onclick="setFont('honglei',this)">
+          <span class="fp" style="font-family:'HongLeiBanShu',cursive;">永</span>
+          <span class="fn">鴻雷板書</span>
         </button>
         <button class="font-btn" id="fb-qingsong1" onclick="setFont('qingsong1',this)">
           <span class="fp" style="font-family:'QingSong1',cursive;">永</span>
@@ -740,12 +722,9 @@ function setFont(key, btn) {
   if (btn) btn.classList.add('on');
   const fontMap = {
     cubic11: "'Cubic11',sans-serif",
-    genkai: "'YuanJieMingChao',serif",
     mantou: "'MantouSans',sans-serif",
-    genyo: "'GenYoMincho',serif",
-    bitmap9: "'BoutiqueBitmap9x9',monospace",
-    chaohua: "'ChaoHuaBiaoTi',serif",
     maokenmosha: "'MaoKenMoSha',sans-serif",
+      honglei: "'HongLeiBanShu',cursive",
     qingsong1: "'QingSong1',cursive",
       qingsong2: "'QingSong2',cursive",
       qingsong3: "'QingSong3',cursive",
@@ -764,9 +743,34 @@ function setFont(key, btn) {
 function move(dx,dy) { posX+=dx; posY+=dy; applyPos(); }
 function resetPos() { posX=0; posY=0; applyPos(); }
 function setStep(s,btn) { step=s; document.querySelectorAll('.step-btn').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); }
+let autoScale = 1; // 自動縮放比例
+let fitEnabled = true; // 是否啟用自動縮放
 function applyPos() {
-  document.getElementById('text-block').style.transform=`translate(${posX}px,${posY}px)`;
+  const block=document.getElementById('text-block');
+  block.style.transform=`translate(${posX}px,${posY}px) scale(${autoScale})`;
   document.getElementById('posReadout').textContent=`X ${posX} / Y ${posY}`;
+}
+
+// 自動縮放：測量文字是否超出畫布，超出就縮小
+function fitToCanvas(){
+  if(!fitEnabled){ autoScale=1; applyPos(); return; }
+  const block=document.getElementById('text-block');
+  const canvas=document.getElementById('canvas');
+  // 先還原成1倍才能量到真實尺寸
+  autoScale=1;
+  block.style.transform=`translate(${posX}px,${posY}px) scale(1)`;
+  // 量測（扣掉canvas的padding）
+  const cs=getComputedStyle(canvas);
+  const padX=parseFloat(cs.paddingLeft)+parseFloat(cs.paddingRight);
+  const padY=parseFloat(cs.paddingTop)+parseFloat(cs.paddingBottom);
+  const availW=canvas.clientWidth-padX;
+  const availH=canvas.clientHeight-padY;
+  const bw=block.scrollWidth, bh=block.scrollHeight;
+  if(bw>0 && bh>0){
+    const scale=Math.min(availW/bw, availH/bh, 1); // 最多1倍，只縮不放
+    autoScale=scale>0?scale:1;
+  }
+  applyPos();
 }
 
 // ── Mockup ────────────────────────────────────────────
@@ -801,12 +805,9 @@ function removeMockup() {
 // ── External full font export support ─────────────────
 const EXTERNAL_FONT_FILES = [
   {family:'Cubic11', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/cubic-11.woff2', format:'woff2', mime:'font/woff2'},
-  {family:'YuanJieMingChao', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/genkai-mincho.ttf', format:'truetype', mime:'font/truetype'},
   {family:'MantouSans', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/MantouSans-Regular.ttf', format:'truetype', mime:'font/truetype'},
-  {family:'GenYoMincho', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/GenYoMincho-Regular.ttf', format:'truetype', mime:'font/truetype'},
-  {family:'BoutiqueBitmap9x9', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/BoutiqueBitmap9x9.ttf', format:'truetype', mime:'font/truetype'},
-  {family:'ChaoHuaBiaoTi', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/ChaoHuaBiaoTi.ttf', format:'truetype', mime:'font/truetype'},
   {family:'MaoKenMoSha', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/MaoKenMoSha.woff2', format:'woff2', mime:'font/woff2'},
+  {family:'HongLeiBanShu', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/HongLeiBanShu.ttf', format:'truetype', mime:'font/truetype'},
   {family:'QingSong1', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/JasonHandwriting1.ttf', format:'truetype', mime:'font/truetype'},
   {family:'QingSong2', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/JasonHandwriting2.ttf', format:'truetype', mime:'font/truetype'},
   {family:'QingSong3', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/JasonHandwriting3.ttf', format:'truetype', mime:'font/truetype'},
@@ -1033,13 +1034,33 @@ function getGlow(){if(colorMode==='gradient')return curGrad.glow;if(colorMode===
 function getInnerColor(){if(colorMode==='gradient'){const {r,g,b}=h2rgb(curGrad.stops[1]);return `rgba(${r},${g},${b},0.18)`;}if(colorMode==='custom'){const {r,g,b}=h2rgb(document.getElementById('customMid').value);return `rgba(${r},${g},${b},0.18)`;}const {r,g,b}=h2rgb(curPal.base);return `rgba(${r},${g},${b},0.18)`;}
 function getDepthColor(i,depth,alpha){const frac=i/depth,a=(alpha*(0.22+0.5*(1-frac))).toFixed(2);let dc=colorMode==='gradient'?curGrad.stops[0]:colorMode==='custom'?document.getElementById('customBot').value:curPal.dark;const {r,g,b}=h2rgb(dc);return `rgba(${Math.round(r*(0.45+0.55*frac))},${Math.round(g*(0.45+0.55*frac))},${Math.round(b*(0.45+0.55*frac))},${a})`;}
 
+let textDirection = 'v'; // 'v'直書 'h'橫書
+function setDirection(dir, btn){
+  textDirection = dir;
+  const block = document.getElementById('text-block');
+  document.getElementById('dirV').classList.toggle('on', dir==='v');
+  document.getElementById('dirH').classList.toggle('on', dir==='h');
+  if(dir==='h'){ block.classList.add('horizontal'); }
+  else{ block.classList.remove('horizontal'); }
+  applyGaps();
+  fitToCanvas();
+}
+
 function applyGaps(){
   const lg=parseInt(document.getElementById('letterGap').value);
   const cg=parseInt(document.getElementById('colGap').value);
-  document.querySelectorAll('.jelly-char').forEach(el=>el.style.marginBottom=lg+'px');
-  document.getElementById('text-block').style.gap=Math.max(cg,0)+'px';
-  if(cg<0){document.querySelectorAll('.col').forEach(c=>c.style.marginLeft=(cg/2)+'px');}
-  else{document.querySelectorAll('.col').forEach(c=>c.style.marginLeft='0');}
+  if(textDirection==='h'){
+    // 橫書：字距=右間距，行距=欄的gap
+    document.querySelectorAll('.jelly-char').forEach(el=>{el.style.marginBottom='0';el.style.marginRight=lg+'px';});
+    document.getElementById('text-block').style.gap=Math.max(cg,0)+'px';
+    document.querySelectorAll('.col').forEach(c=>c.style.marginLeft='0');
+  }else{
+    // 直書：字距=下間距，行距=欄間
+    document.querySelectorAll('.jelly-char').forEach(el=>{el.style.marginBottom=lg+'px';el.style.marginRight='0';});
+    document.getElementById('text-block').style.gap=Math.max(cg,0)+'px';
+    if(cg<0){document.querySelectorAll('.col').forEach(c=>c.style.marginLeft=(cg/2)+'px');}
+    else{document.querySelectorAll('.col').forEach(c=>c.style.marginLeft='0');}
+  }
   applyOffsets();
 }
 
@@ -1066,7 +1087,7 @@ function render(){
     });
     block.appendChild(col);
   });
-  applyGaps(); applyOffsets(); applyPos();
+  applyGaps(); applyOffsets(); fitToCanvas();
 }
 
 function makeChar(ch,sz,alpha,depth){
@@ -1145,6 +1166,13 @@ rebuildInputs();
 rebuildOffsets();
 document.fonts.ready.then(render);
 render();
+
+// 視窗大小改變時重算自動縮放
+let resizeTimer;
+window.addEventListener('resize', ()=>{
+  clearTimeout(resizeTimer);
+  resizeTimer=setTimeout(()=>{ if(typeof fitToCanvas==='function') fitToCanvas(); }, 150);
+});
 </script>
 </body>
 </html>
