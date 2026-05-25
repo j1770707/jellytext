@@ -27,6 +27,16 @@
   font-display: block;
 }
 @font-face {
+  font-family: 'ZeroGothic';
+  src: url('https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/ZeroGothic.otf') format('opentype');
+  font-display: block;
+}
+@font-face {
+  font-family: 'FancyHandwriting';
+  src: url('https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/FancyHandwriting.ttf') format('truetype');
+  font-display: block;
+}
+@font-face {
   font-family: 'QingSong1';
   src: url('https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/JasonHandwriting1.ttf') format('truetype');
   font-display: block;
@@ -562,6 +572,14 @@ input[type=color] {
           <span class="fp" style="font-family:'HongLeiBanShu',cursive;">永</span>
           <span class="fn">鴻雷板書</span>
         </button>
+        <button class="font-btn" id="fb-zerogothic" onclick="setFont('zerogothic',this)">
+          <span class="fp" style="font-family:'ZeroGothic',sans-serif;">永</span>
+          <span class="fn">破碎零號(日)</span>
+        </button>
+        <button class="font-btn" id="fb-fancyhand" onclick="setFont('fancyhand',this)">
+          <span class="fp" style="font-family:'FancyHandwriting',cursive;">永</span>
+          <span class="fn">字言手繪</span>
+        </button>
         <button class="font-btn" id="fb-qingsong1" onclick="setFont('qingsong1',this)">
           <span class="fp" style="font-family:'QingSong1',cursive;">永</span>
           <span class="fn">清松手寫1</span>
@@ -725,6 +743,8 @@ function setFont(key, btn) {
     mantou: "'MantouSans',sans-serif",
     maokenmosha: "'MaoKenMoSha',sans-serif",
       honglei: "'HongLeiBanShu',cursive",
+      zerogothic: "'ZeroGothic',sans-serif",
+      fancyhand: "'FancyHandwriting',cursive",
     qingsong1: "'QingSong1',cursive",
       qingsong2: "'QingSong2',cursive",
       qingsong3: "'QingSong3',cursive",
@@ -808,6 +828,8 @@ const EXTERNAL_FONT_FILES = [
   {family:'MantouSans', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/MantouSans-Regular.ttf', format:'truetype', mime:'font/truetype'},
   {family:'MaoKenMoSha', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/MaoKenMoSha.woff2', format:'woff2', mime:'font/woff2'},
   {family:'HongLeiBanShu', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/HongLeiBanShu.ttf', format:'truetype', mime:'font/truetype'},
+  {family:'ZeroGothic', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/ZeroGothic.otf', format:'opentype', mime:'font/otf'},
+  {family:'FancyHandwriting', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/FancyHandwriting.ttf', format:'truetype', mime:'font/truetype'},
   {family:'QingSong1', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/JasonHandwriting1.ttf', format:'truetype', mime:'font/truetype'},
   {family:'QingSong2', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/JasonHandwriting2.ttf', format:'truetype', mime:'font/truetype'},
   {family:'QingSong3', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/JasonHandwriting3.ttf', format:'truetype', mime:'font/truetype'},
@@ -1127,7 +1149,6 @@ function makeChar(ch,sz,alpha,depth){
   </svg>`;
   const div=document.createElement('div');
   div.className='jelly-char';
-  div.style.filter=`drop-shadow(0 16px 32px ${getGlow()})`;
   div.innerHTML=svg;
   return div;
 }
