@@ -871,9 +871,20 @@ async function getExternalFontCSS() {
 // ── Export ────────────────────────────────────────────
 async function exportPNG(hiRes) {
   const prog=document.getElementById('expProg');
-  prog.textContent=hiRes?'⏳ 渲染高解析中...':'⏳ 渲染透明 PNG 中...';
   const scale=hiRes?4:2;
   const exportTransparent=!hiRes;
+  const isMobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+  // 手機：在使用者點擊當下「立刻」開分頁，搶住手勢脈絡，避免被 iOS 擋掉
+  let preWin=null;
+  if(isMobile){
+    preWin=window.open('','_blank');
+    if(preWin){
+      preWin.document.write('<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>處理中</title><style>body{margin:0;background:#111;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;font-size:16px;}</style></head><body>⏳ 圖片渲染中，請稍候…</body></html>');
+    }
+  }
+
+  prog.textContent=hiRes?'⏳ 渲染高解析中...':'⏳ 渲染透明 PNG 中...';
   document.querySelectorAll('.jelly-char,.col').forEach(el=>{el.style.animationPlayState='paused';});
   try {
     if (document.fonts && document.fonts.ready) await document.fonts.ready;
@@ -917,34 +928,40 @@ async function exportPNG(hiRes) {
       promises.push(p);
     });
     await Promise.all(promises);
-    cvs.toBlob(blob=>{
-      const url=URL.createObjectURL(blob);
-      const fname=hiRes?'jelly-4k.png':'jelly-transparent.png';
-      // 偵測手機 (iOS/Android)，手機用開新分頁長按儲存，電腦用直接下載
-      const isMobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      if(isMobile){
-        // 手機：開新分頁顯示圖片，使用者長按儲存到相簿
-        const w=window.open();
-        if(w){
-          w.document.write('<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+fname+'</title><style>body{margin:0;background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;color:#fff;}img{max-width:100%;height:auto;}p{padding:12px;text-align:center;font-size:15px;line-height:1.6;}</style></head><body><p>👇 長按圖片 → 儲存到「照片」</p><img src="'+url+'"></body></html>');
-          w.document.close();
-          prog.textContent='✅ 已開新分頁，長按圖片儲存';
-        } else {
-          // 開分頁被擋，退而求其次用下載
-          const a=document.createElement('a');
-          a.href=url; a.download=fname; a.click();
-          prog.textContent='✅ 完成！若無反應請允許彈出視窗';
-        }
+
+    const fname=hiRes?'jelly-4k.png':'jelly-transparent.png';
+
+    if(isMobile){
+      // 手機：把成品塞進預先開好的分頁，使用者長按儲存
+      const dataUrl=cvs.toDataURL('image/png');
+      if(preWin && !preWin.closed){
+        preWin.document.open();
+        preWin.document.write('<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+fname+'</title><style>body{margin:0;background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;color:#fff;}img{max-width:100%;height:auto;}p{padding:12px;text-align:center;font-size:15px;line-height:1.6;}</style></head><body><p>👇 長按圖片 → 儲存到「照片」</p><img src="'+dataUrl+'"></body></html>');
+        preWin.document.close();
+        prog.textContent='✅ 已開新分頁，長按圖片儲存';
       } else {
-        // 電腦：直接下載
+        // 分頁被擋：退而用下載（部分 iOS 版本可行）
+        const a=document.createElement('a');
+        a.href=dataUrl; a.download=fname; a.click();
+        prog.textContent='✅ 若無反應請允許彈出視窗後重試';
+      }
+      setTimeout(()=>prog.textContent='',6000);
+    } else {
+      // 電腦：直接下載
+      cvs.toBlob(blob=>{
+        const url=URL.createObjectURL(blob);
         const a=document.createElement('a');
         a.href=url; a.download=fname; a.click();
         URL.revokeObjectURL(url);
         prog.textContent='✅ 下載完成！';
-      }
-      setTimeout(()=>prog.textContent='',5000);
-    },'image/png');
-  } catch(e){ prog.textContent='❌ 匯出失敗，請截圖'; console.error(e); }
+        setTimeout(()=>prog.textContent='',5000);
+      },'image/png');
+    }
+  } catch(e){
+    if(preWin && !preWin.closed) preWin.close();
+    prog.textContent='❌ 匯出失敗，請截圖';
+    console.error(e);
+  }
   document.querySelectorAll('.jelly-char,.col').forEach(el=>{el.style.animationPlayState='';});
 }
 
