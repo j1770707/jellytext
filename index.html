@@ -302,6 +302,18 @@ input[type=range] {
 .font-btn .fn { font-size:10px; color:rgba(255,255,255,0.35); }
 .font-btn.on .fn { color:var(--accent); }
 
+.font-status {
+  display:block;
+  margin-top:4px;
+  font-size:9px;
+  letter-spacing:.08em;
+  color:rgba(255,255,255,.28);
+}
+.font-btn.loaded .font-status { color:#6effb4; }
+.font-btn.missing .font-status { color:#ff8a80; }
+.font-btn.loading .font-status { color:var(--accent); }
+
+
 /* ── Text inputs ── */
 .text-inputs { display:flex; flex-direction:column; gap:8px; }
 .line-wrap { display:flex; gap:6px; align-items:center; }
@@ -690,31 +702,106 @@ const FONT2_B64 = 'AAEAAAALAIAAAwAwT1MvMmncVCMAAAE4AAAAUGNtYXB5y9BOAADe5AAA20Znb
 
 // ── Font ──────────────────────────────────────────────
 
-function ensureFontLoaded(family) {
-  if (!document.fonts || !document.fonts.load) return Promise.resolve();
-  return document.fonts.load('96px ' + family).then(function(){ return document.fonts.ready; }).catch(function(err){
-    console.warn('字體載入失敗或尚未上傳：', family, err);
+
+const FONT_KEY_MAP = {
+  maoken: {family:'MaoKenAssortedSansTC', label:'貓啃什錦黑', url:'./fonts/貓啃.otf', fallback:'sans-serif'},
+  cubic11: {family:'Cubic11', label:'俐方體 11 號', url:'./fonts/cubic-11.ttf', fallback:'monospace'},
+  genkai: {family:'YuanJieMingChao', label:'源界明朝', url:'./fonts/genkai-mincho.ttf', fallback:'serif'},
+  mantou: {family:'MantouSans', label:'饅頭黑體', url:'./fonts/MantouSans-Regular.ttf', fallback:'sans-serif'},
+  genyo: {family:'GenYoMincho', label:'源樣明體', url:'./fonts/GenYoMincho-Regular.ttf', fallback:'serif'},
+  bitmap9: {family:'BoutiqueBitmap9x9', label:'精品點陣 9×9', url:'./fonts/BoutiqueBitmap9x9.ttf', fallback:'monospace'},
+  devilleg: {family:'SweiDevilLeg', label:'獅尾惡腿黑體', url:'./fonts/SweiDevilLegCJKtc-Regular.ttf', fallback:'sans-serif'},
+  chaohua: {family:'ChaoHuaBiaoTi', label:'朝華標題', url:'./fonts/ChaoHuaBiaoTi.ttf', fallback:'serif'},
+  maokenmosha: {family:'MaoKenMoSha', label:'貓啃磨沙', url:'./fonts/貓啃磨沙.otf', fallback:'sans-serif'},
+  qingsong: {family:'QingSongHandwriting', label:'清松手寫體', url:'./fonts/qingsong-handwriting.ttf', fallback:'cursive'}
+};
+let curFontKey = 'genkai';
+let loadedFontState = {};
+let fontLoadPromises = {};
+
+function setFontButtonState(key, state, text) {
+  const btn = document.getElementById('fb-' + key);
+  if (!btn) return;
+  btn.classList.remove('loaded','missing','loading');
+  btn.classList.add(state);
+  let st = btn.querySelector('.font-status');
+  if (!st) {
+    st = document.createElement('span');
+    st.className = 'font-status';
+    btn.appendChild(st);
+  }
+  st.textContent = text;
+}
+
+function getFontCSSFamily() {
+  const def = FONT_KEY_MAP[curFontKey] || FONT_KEY_MAP.genkai;
+  return '"' + def.family + '", ' + def.fallback;
+}
+
+function getSvgFontFamily() {
+  const def = FONT_KEY_MAP[curFontKey] || FONT_KEY_MAP.genkai;
+  return def.family + ', ' + def.fallback;
+}
+
+function ensureFontLoadedByKey(key) {
+  const def = FONT_KEY_MAP[key] || FONT_KEY_MAP.genkai;
+  if (loadedFontState[key] === 'loaded') return Promise.resolve(true);
+  if (fontLoadPromises[key]) return fontLoadPromises[key];
+  setFontButtonState(key, 'loading', '載入中');
+  fontLoadPromises[key] = new Promise(function(resolve) {
+    if (!window.FontFace || !document.fonts) {
+      loadedFontState[key] = 'unknown';
+      setFontButtonState(key, 'loading', '待測');
+      resolve(false);
+      return;
+    }
+    const face = new FontFace(def.family, 'url("' + def.url + '")');
+    face.load().then(function(loadedFace) {
+      document.fonts.add(loadedFace);
+      return document.fonts.ready;
+    }).then(function() {
+      loadedFontState[key] = 'loaded';
+      setFontButtonState(key, 'loaded', '已載入');
+      resolve(true);
+    }).catch(function(err) {
+      loadedFontState[key] = 'missing';
+      setFontButtonState(key, 'missing', '未載入');
+      console.warn('字體未載入：' + def.label + ' ' + def.url, err);
+      resolve(false);
+    });
   });
+  return fontLoadPromises[key];
+}
+
+function ensureFontLoaded(family) {
+  let key = curFontKey;
+  for (const k in FONT_KEY_MAP) {
+    if (FONT_KEY_MAP[k].family === family) key = k;
+  }
+  return ensureFontLoadedByKey(key);
 }
 
 function setFont(key, btn) {
-  document.querySelectorAll('.font-btn').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.font-btn').forEach(function(b){ b.classList.remove('on'); });
   if (btn) btn.classList.add('on');
-  const fontMap = {
-    maoken: "MaoKenAssortedSansTC",
-    cubic11: "Cubic11",
-    genkai: "YuanJieMingChao",
-    mantou: "MantouSans",
-    genyo: "GenYoMincho",
-    bitmap9: "BoutiqueBitmap9x9",
-    devilleg: "SweiDevilLeg",
-    chaohua: "ChaoHuaBiaoTi",
-    maokenmosha: "MaoKenMoSha",
-    qingsong: "QingSongHandwriting"
-  };
-  curFont = fontMap[key] || fontMap.genkai;
+  const def = FONT_KEY_MAP[key] || FONT_KEY_MAP.genkai;
+  curFontKey = key;
+  curFont = def.family;
   render();
-  ensureFontLoaded(curFont).then(function(){ render(); });
+  ensureFontLoadedByKey(key).then(function(){ render(); });
+}
+
+function bootFontStatusCheck() {
+  for (const key in FONT_KEY_MAP) {
+    const btn = document.getElementById('fb-' + key);
+    if (btn && !btn.querySelector('.font-status')) {
+      const st = document.createElement('span');
+      st.className = 'font-status';
+      st.textContent = '檢查中';
+      btn.appendChild(st);
+    }
+    ensureFontLoadedByKey(key);
+  }
 }
 
 // ── Position ──────────────────────────────────────────
@@ -1022,7 +1109,7 @@ function render(){
 
 function makeChar(ch,sz,alpha,depth){
   const pad=sz*0.2,W=sz+pad*2,H=sz*1.25+pad*2,cx=W/2,cy=H/2,tY=cy+sz*0.38;
-  const ff=curFont;
+  const ff=getSvgFontFamily();
   let dh='';
   for(let i=depth;i>=1;i--){dh+=`<text x="${cx+i*1.2}" y="${tY+i*1.2}" text-anchor="middle" font-family="${ff}" font-size="${sz}px" fill="${getDepthColor(i,depth,alpha)}">${ch}</text>`;}
   const id='j'+Math.random().toString(36).slice(2,8);
@@ -1094,6 +1181,7 @@ function toggleFreeze() {
 // ── Init ──────────────────────────────────────────────
 rebuildInputs();
 rebuildOffsets();
+bootFontStatusCheck();
 ensureFontLoaded(curFont).then(function(){ render(); });
 render();
 </script>
