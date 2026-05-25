@@ -919,11 +919,30 @@ async function exportPNG(hiRes) {
     await Promise.all(promises);
     cvs.toBlob(blob=>{
       const url=URL.createObjectURL(blob);
-      const a=document.createElement('a');
-      a.href=url; a.download=hiRes?'jelly-4k.png':'jelly-transparent.png';
-      a.click(); URL.revokeObjectURL(url);
-      prog.textContent='✅ 下載完成！';
-      setTimeout(()=>prog.textContent='',3000);
+      const fname=hiRes?'jelly-4k.png':'jelly-transparent.png';
+      // 偵測手機 (iOS/Android)，手機用開新分頁長按儲存，電腦用直接下載
+      const isMobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if(isMobile){
+        // 手機：開新分頁顯示圖片，使用者長按儲存到相簿
+        const w=window.open();
+        if(w){
+          w.document.write('<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+fname+'</title><style>body{margin:0;background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;color:#fff;}img{max-width:100%;height:auto;}p{padding:12px;text-align:center;font-size:15px;line-height:1.6;}</style></head><body><p>👇 長按圖片 → 儲存到「照片」</p><img src="'+url+'"></body></html>');
+          w.document.close();
+          prog.textContent='✅ 已開新分頁，長按圖片儲存';
+        } else {
+          // 開分頁被擋，退而求其次用下載
+          const a=document.createElement('a');
+          a.href=url; a.download=fname; a.click();
+          prog.textContent='✅ 完成！若無反應請允許彈出視窗';
+        }
+      } else {
+        // 電腦：直接下載
+        const a=document.createElement('a');
+        a.href=url; a.download=fname; a.click();
+        URL.revokeObjectURL(url);
+        prog.textContent='✅ 下載完成！';
+      }
+      setTimeout(()=>prog.textContent='',5000);
     },'image/png');
   } catch(e){ prog.textContent='❌ 匯出失敗，請截圖'; console.error(e); }
   document.querySelectorAll('.jelly-char,.col').forEach(el=>{el.style.animationPlayState='';});
