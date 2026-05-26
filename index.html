@@ -679,8 +679,8 @@ input[type=color] {
       <div class="rrow">
         <input type="range" id="colGap" min="-200" max="160" value="8"
           oninput="this.nextElementSibling.value=this.value;applyGaps()">
-        <input class="num-input" id="cgVal" type="number" value="8" min="-80" max="160"
-          onchange="var v=Math.min(Math.max(parseInt(this.value)||-80,-80),160);this.value=v;document.getElementById('colGap').value=v;applyGaps()" onclick="this.select()">
+        <input class="num-input" id="cgVal" type="number" value="8" min="-200" max="160"
+          onchange="var v=Math.min(Math.max(parseInt(this.value)||-200,-200),160);this.value=v;document.getElementById('colGap').value=v;applyGaps()" onclick="this.select()">
       </div>
     </div>
 
@@ -1150,16 +1150,15 @@ function applyGaps(){
   const lg=parseInt(document.getElementById('letterGap').value);
   const cg=parseInt(document.getElementById('colGap').value);
   if(textDirection==='h'){
-    // 橫書：字距=右間距，行距=欄的gap
+    // 橫書：字距=右間距，行距=欄間（用margin實現負值）
     document.querySelectorAll('.jelly-char').forEach(el=>{el.style.marginBottom='0';el.style.marginRight=lg+'px';});
-    document.getElementById('text-block').style.gap=Math.max(cg,0)+'px';
-    document.querySelectorAll('.col').forEach(c=>c.style.marginLeft='0');
+    document.getElementById('text-block').style.gap='0';
+    document.querySelectorAll('.col').forEach((c,i)=>{c.style.marginLeft=(i===0?0:cg)+'px';});
   }else{
-    // 直書：字距=下間距，行距=欄間
+    // 直書：字距=下間距，行距=欄間（用margin實現負值）
     document.querySelectorAll('.jelly-char').forEach(el=>{el.style.marginBottom=lg+'px';el.style.marginRight='0';});
-    document.getElementById('text-block').style.gap=Math.max(cg,0)+'px';
-    if(cg<0){document.querySelectorAll('.col').forEach(c=>c.style.marginLeft=(cg/2)+'px');}
-    else{document.querySelectorAll('.col').forEach(c=>c.style.marginLeft='0');}
+    document.getElementById('text-block').style.gap='0';
+    document.querySelectorAll('.col').forEach((c,i)=>{c.style.marginLeft=(i===0?0:cg)+'px';});
   }
   applyOffsets();
 }
