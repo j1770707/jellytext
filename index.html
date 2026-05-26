@@ -907,9 +907,19 @@ async function exportPNG(hiRes) {
     const externalFontCSS = await getExternalFontCSS();
     const block=document.getElementById('text-block');
     const canvasEl=document.getElementById('canvas');
-    const canvasRect=canvasEl.getBoundingClientRect();
-    const W=Math.round(canvasRect.width*scale);
-    const H=Math.round(canvasRect.height*scale);
+
+    // 暫時把 autoScale 拿掉，讓文字回到 100%，才能量到真實尺寸
+    const savedTransform = block.style.transform;
+    block.style.transform = `translate(${posX}px,${posY}px) scale(1)`;
+    // 等瀏覽器 layout 更新
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    // 用 text-block 的實際大小當畫布基準，加適量 padding
+    const blockRect = block.getBoundingClientRect();
+    const pad = 24 * scale;
+    const W = Math.round(blockRect.width * scale + pad * 2);
+    const H = Math.round(blockRect.height * scale + pad * 2);
+
     const cvs=document.createElement('canvas');
     cvs.width=W; cvs.height=H;
     const ctx=cvs.getContext('2d');
@@ -924,8 +934,9 @@ async function exportPNG(hiRes) {
     chars.forEach(charDiv=>{
       const svgEl=charDiv.querySelector('svg'); if(!svgEl) return;
       const rect=charDiv.getBoundingClientRect();
-      const dx=(rect.left-canvasRect.left)*scale;
-      const dy=(rect.top-canvasRect.top)*scale;
+      // 相對於 text-block 左上角，加 padding 偏移
+      const dx=(rect.left - blockRect.left)*scale + pad;
+      const dy=(rect.top  - blockRect.top )*scale + pad;
       const dw=rect.width*scale; const dh=rect.height*scale;
       const svgClone=svgEl.cloneNode(true);
       const defs=svgClone.querySelector('defs')||svgClone.insertBefore(document.createElementNS('http://www.w3.org/2000/svg','defs'),svgClone.firstChild);
@@ -944,6 +955,8 @@ async function exportPNG(hiRes) {
       promises.push(p);
     });
     await Promise.all(promises);
+    // 還原 autoScale transform
+    block.style.transform = savedTransform;
 
     const fname=hiRes?'jelly-4k.png':'jelly-transparent.png';
 
@@ -974,6 +987,8 @@ async function exportPNG(hiRes) {
       },'image/png');
     }
   } catch(e){
+    // 還原 transform
+    try{ document.getElementById('text-block').style.transform = savedTransform; }catch(_){}
     if(preWin && !preWin.closed) preWin.close();
     prog.textContent='❌ 匯出失敗，請截圖';
     console.error(e);
