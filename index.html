@@ -795,7 +795,9 @@ function fitToCanvas(){
   const padY=parseFloat(cs.paddingTop)+parseFloat(cs.paddingBottom);
   const availW=canvas.clientWidth-padX;
   const availH=canvas.clientHeight-padY;
-  const bw=block.scrollWidth, bh=block.scrollHeight;
+  // 用 getBoundingClientRect 取得真實視覺尺寸，才能正確反映負 margin 的重疊效果
+  const blockRect=block.getBoundingClientRect();
+  const bw=blockRect.width, bh=blockRect.height;
   if(bw>0 && bh>0){
     const scale=Math.min(availW/bw, availH/bh, 1); // 最多1倍，只縮不放
     autoScale=scale>0?scale:1;
@@ -1060,9 +1062,18 @@ function updateLine(idx,val) {
   render();
 }
 function applyOffsets() {
+  // 橫書時行垂直排列，offset 是「水平錯位」→ 用 marginLeft（不會跟 cg 的 marginTop 衝突）
+  // 直書時欄水平排列，offset 是「垂直錯位」→ 用 marginTop（不會跟 cg 的 marginLeft 衝突）
   document.querySelectorAll('.col').forEach(col=>{
     const idx=parseInt(col.dataset.lineIdx||0);
-    col.style.marginTop=(offsets[idx]||0)+'px';
+    const v=(offsets[idx]||0)+'px';
+    if(textDirection==='h'){
+      col.style.marginLeft=v;
+      // marginTop 由 applyGaps 控制，這裡不動
+    }else{
+      col.style.marginTop=v;
+      // marginLeft 由 applyGaps 控制，這裡不動
+    }
   });
 }
 
