@@ -203,7 +203,7 @@ body::after {
 #canvas.has-mockup { background: transparent !important; }
 #text-block {
   transform-origin: center center;
-  display: flex; flex-direction: row-reverse;
+  display: flex; flex-direction: row;
   align-items: flex-start; justify-content: center;
   flex-wrap: wrap; gap: 8px;
 }
@@ -1149,16 +1149,31 @@ function setDirection(dir, btn){
 function applyGaps(){
   const lg=parseInt(document.getElementById('letterGap').value);
   const cg=parseInt(document.getElementById('colGap').value);
+  const block=document.getElementById('text-block');
   if(textDirection==='h'){
-    // 橫書：字距=右間距，行距=欄間（用margin實現負值）
+    // 橫書：字距=水平間距（marginRight），行距=垂直間距
     document.querySelectorAll('.jelly-char').forEach(el=>{el.style.marginBottom='0';el.style.marginRight=lg+'px';});
-    document.getElementById('text-block').style.gap='0';
-    document.querySelectorAll('.col').forEach((c,i)=>{c.style.marginLeft=(i===0?0:cg)+'px';});
+    if(cg>=0){
+      block.style.gap=cg+'px';
+      block.style.flexWrap='wrap';
+      document.querySelectorAll('.col').forEach(c=>{c.style.marginTop='0';c.style.marginLeft='0';});
+    }else{
+      block.style.gap='0';
+      block.style.flexWrap='nowrap';
+      document.querySelectorAll('.col').forEach((c,i)=>{c.style.marginTop=(i===0?0:cg)+'px';c.style.marginLeft='0';});
+    }
   }else{
-    // 直書：字距=下間距，行距=欄間（用margin實現負值）
+    // 直書：字距=垂直間距（marginBottom），行距=水平間距
     document.querySelectorAll('.jelly-char').forEach(el=>{el.style.marginBottom=lg+'px';el.style.marginRight='0';});
-    document.getElementById('text-block').style.gap='0';
-    document.querySelectorAll('.col').forEach((c,i)=>{c.style.marginLeft=(i===0?0:cg)+'px';});
+    if(cg>=0){
+      block.style.gap=cg+'px';
+      block.style.flexWrap='wrap';
+      document.querySelectorAll('.col').forEach(c=>{c.style.marginTop='0';c.style.marginRight='0';c.style.marginLeft='0';});
+    }else{
+      block.style.gap='0';
+      block.style.flexWrap='nowrap';
+      document.querySelectorAll('.col').forEach((c,i)=>{c.style.marginTop='0';c.style.marginRight='0';c.style.marginLeft=(i===0?0:cg)+'px';});
+    }
   }
   applyOffsets();
 }
@@ -1169,16 +1184,17 @@ function render(){
   const depth=parseInt(document.getElementById('depthSlider').value);
   const block=document.getElementById('text-block');
   block.innerHTML='';
-  // 直書：第一行在右，第二行在左
-  // flex-direction:row-reverse 下，第一個DOM元素顯示在最右
-  // 所以 lines[0] 要第一個append → 不reverse
-  lines.forEach((txt,ri)=>{
+  // 直書：第一行要在最右邊，flex-direction:row + 反轉順序
+  // 橫書：正常順序
+  const renderLines = textDirection==='v' ? [...lines].reverse() : lines;
+  const renderIndices = textDirection==='v' ? [...lines.keys()].reverse() : [...lines.keys()];
+  renderLines.forEach((txt,i)=>{
     if(!txt) return;
-    const lineIdx=ri;
+    const lineIdx=renderIndices[i];
     const col=document.createElement('div');
     col.className='col';
     col.dataset.lineIdx=lineIdx;
-    col.style.animationDelay=(ri*0.3)+'s';
+    col.style.animationDelay=(i*0.3)+'s';
     [...txt].forEach((ch,ci)=>{
       const div=makeChar(ch,sz,alpha,depth);
       div.style.animationDelay=(ci*0.12)+'s';
