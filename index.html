@@ -50,11 +50,6 @@
   font-display: block;
 }
 @font-face {
-  font-family: 'QingSong1';
-  src: url('https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/JasonHandwriting1.ttf') format('truetype');
-  font-display: block;
-}
-@font-face {
   font-family: 'QingSong2';
   src: url('https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/JasonHandwriting2.ttf') format('truetype');
   font-display: block;
@@ -779,10 +774,6 @@ input[type=color] {
           <span class="fp" style="font-family:'FancyHandwriting',cursive;">永</span>
           <span class="fn">字言手繪</span>
         </button>
-        <button class="font-btn" id="fb-qingsong1" onclick="setFont('qingsong1',this)">
-          <span class="fp" style="font-family:'QingSong1',cursive;">永</span>
-          <span class="fn">清松手寫1</span>
-        </button>
         <button class="font-btn" id="fb-qingsong2" onclick="setFont('qingsong2',this)">
           <span class="fp" style="font-family:'QingSong2',cursive;">永</span>
           <span class="fn">清松手寫2</span>
@@ -850,10 +841,10 @@ input[type=color] {
     <div class="ctrl">
       <label>字體大小</label>
       <div class="rrow">
-        <input type="range" id="szSlider" min="4" max="80" value="32"
+        <input type="range" id="szSlider" min="4" max="100" value="32"
           oninput="this.nextElementSibling.value=this.value;render()">
-        <input class="num-input" id="szVal" type="number" value="32" min="4" max="80"
-          onchange="var v=Math.min(Math.max(parseInt(this.value)||4,4),80);this.value=v;document.getElementById('szSlider').value=v;render()" onclick="this.select()">
+        <input class="num-input" id="szVal" type="number" value="32" min="4" max="100"
+          onchange="var v=Math.min(Math.max(parseInt(this.value)||4,4),100);this.value=v;document.getElementById('szSlider').value=v;render()" onclick="this.select()">
       </div>
     </div>
 
@@ -1014,8 +1005,7 @@ function setFont(key, btn) {
       honglei: "'HongLeiBanShu',cursive",
       zerogothic: "'ZeroGothic',sans-serif",
       fancyhand: "'FancyHandwriting',cursive",
-    qingsong1: "'QingSong1',cursive",
-      qingsong2: "'QingSong2',cursive",
+    qingsong2: "'QingSong2',cursive",
       qingsong3: "'QingSong3',cursive",
       qingsong4: "'QingSong4',cursive",
       qingsong5: "'QingSong5',cursive",
@@ -1159,7 +1149,6 @@ const EXTERNAL_FONT_FILES = [
   {family:'HongLeiBanShu', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/HongLeiBanShu.ttf', format:'truetype', mime:'font/truetype'},
   {family:'ZeroGothic', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/ZeroGothic.otf', format:'opentype', mime:'font/otf'},
   {family:'FancyHandwriting', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/FancyHandwriting.ttf', format:'truetype', mime:'font/truetype'},
-  {family:'QingSong1', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/JasonHandwriting1.ttf', format:'truetype', mime:'font/truetype'},
   {family:'QingSong2', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/JasonHandwriting2.ttf', format:'truetype', mime:'font/truetype'},
   {family:'QingSong3', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/JasonHandwriting3.ttf', format:'truetype', mime:'font/truetype'},
   {family:'QingSong4', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/JasonHandwriting4.ttf', format:'truetype', mime:'font/truetype'},
@@ -1887,7 +1876,7 @@ function loadState(){
       const sl = document.getElementById(sliderId); if(sl) sl.value = v;
       const nm = document.getElementById(numId); if(nm) nm.value = v;
     };
-    setVal('szSlider','szVal', s.sz, 4, 80);
+    setVal('szSlider','szVal', s.sz, 4, 100);
     setVal('alphaSlider','alphaVal', s.alpha, 40, 95);
     setVal('letterGap','lgVal', s.lg, -200, 100);
     setVal('colGap','cgVal', s.cg, -200, 160);
@@ -1928,7 +1917,7 @@ function syncUIFromState(){
     cubic11:"'Cubic11',sans-serif", mantou:"'MantouSans',sans-serif",
     maokenmosha:"'MaoKenMoSha',sans-serif", honglei:"'HongLeiBanShu',cursive",
     zerogothic:"'ZeroGothic',sans-serif", fancyhand:"'FancyHandwriting',cursive",
-    qingsong1:"'QingSong1',cursive", qingsong2:"'QingSong2',cursive",
+    qingsong2:"'QingSong2',cursive",
     qingsong3:"'QingSong3',cursive", qingsong4:"'QingSong4',cursive",
     qingsong5:"'QingSong5',cursive", yusiyuan:"'YuSiyuan',serif",
     honglei2:"'HongLei2',cursive", yunyou:"'YunYou',cursive",
