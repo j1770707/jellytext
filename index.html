@@ -850,10 +850,10 @@ input[type=color] {
     <div class="ctrl">
       <label>字體大小</label>
       <div class="rrow">
-        <input type="range" id="szSlider" min="4" max="35" value="32"
+        <input type="range" id="szSlider" min="4" max="60" value="32"
           oninput="this.nextElementSibling.value=this.value;render()">
-        <input class="num-input" id="szVal" type="number" value="32" min="4" max="35"
-          onchange="var v=Math.min(Math.max(parseInt(this.value)||4,4),35);this.value=v;document.getElementById('szSlider').value=v;render()" onclick="this.select()">
+        <input class="num-input" id="szVal" type="number" value="32" min="4" max="60"
+          onchange="var v=Math.min(Math.max(parseInt(this.value)||4,4),60);this.value=v;document.getElementById('szSlider').value=v;render()" onclick="this.select()">
       </div>
     </div>
 
@@ -1887,7 +1887,7 @@ function loadState(){
       const sl = document.getElementById(sliderId); if(sl) sl.value = v;
       const nm = document.getElementById(numId); if(nm) nm.value = v;
     };
-    setVal('szSlider','szVal', s.sz, 4, 35);
+    setVal('szSlider','szVal', s.sz, 4, 60);
     setVal('alphaSlider','alphaVal', s.alpha, 40, 95);
     setVal('letterGap','lgVal', s.lg, -200, 100);
     setVal('colGap','cgVal', s.cg, -200, 160);
