@@ -2,8 +2,21 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>果凍字設計工具</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0d0907">
+<meta name="color-scheme" content="dark light">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
+<title>果凍字設計工具｜Jelly Type Studio</title>
+<meta name="description" content="線上果凍字設計工具：漸層光澤、直書／橫書、多款中文字型、4K 與透明 PNG 匯出、T 恤預覽。純瀏覽器端，免安裝。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="果凍字設計工具｜Jelly Type Studio">
+<meta property="og:description" content="線上做出果凍光澤字，支援直書、多字型、4K／透明 PNG 匯出。">
+<meta property="og:image" content="https://j1770707.github.io/jellytext/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='1' x2='0.3' y2='0'%3E%3Cstop offset='0' stop-color='%238a2d0a'/%3E%3Cstop offset='0.7' stop-color='%23e8651e'/%3E%3Cstop offset='1' stop-color='%23ffb74d'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ctext x='50' y='74' font-size='78' text-anchor='middle' font-family='sans-serif' font-weight='900' fill='url(%23g)'%3E果%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900&display=swap" rel="stylesheet">
 <style>
 @font-face {
@@ -102,53 +115,73 @@
   font-display: block;
 }
 
-/* ── iOS Frosted Glass Theme ── */
+/* ── Plus One Theme：暖黑底 × 橘色重點 × 米白文字 ── */
 :root {
-  --glass-bg: rgba(28, 28, 40, 0.65);
-  --glass-border: rgba(255, 255, 255, 0.10);
-  --glass-hover: rgba(255, 255, 255, 0.06);
+  --glass-bg: rgba(26, 20, 16, 0.62);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-hover: rgba(255, 255, 255, 0.05);
   --glass-blur: blur(20px);
-  --glass-sat: saturate(180%);
-  --accent: #4dd0e1;
-  --accent2: rgba(77,208,225,0.15);
-  --text: #eee;
-  --muted: #555;
-  --radius: 16px;
-  --radius-sm: 10px;
+  --glass-sat: saturate(160%);
+  --accent: #e8651e;          /* 主橘 */
+  --accent-soft: #ff8a3d;     /* 亮橘（hover / 高光）*/
+  --accent2: rgba(232,101,30,0.16);
+  --accent3: rgba(232,101,30,0.30);
+  --text: #f2ede3;            /* 暖米白 */
+  --muted: #6b6258;
+  --radius: 18px;
+  --radius-sm: 11px;
 }
 
-* { box-sizing:border-box; margin:0; padding:0; }
+* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color: transparent; }
 html, body {
   min-height: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
+html { overscroll-behavior-y: none; overflow-x: clip; }
+body { overflow-x: clip; }
 body {
   background:
-    radial-gradient(circle at 16% 18%, rgba(70, 150, 190, 0.22) 0%, rgba(70, 150, 190, 0.10) 18%, rgba(70, 150, 190, 0.00) 40%),
-    radial-gradient(circle at 84% 22%, rgba(255, 170, 72, 0.18) 0%, rgba(255, 170, 72, 0.10) 18%, rgba(255, 170, 72, 0.00) 38%),
-    radial-gradient(circle at 86% 82%, rgba(103, 96, 214, 0.16) 0%, rgba(103, 96, 214, 0.08) 16%, rgba(103, 96, 214, 0.00) 36%),
-    linear-gradient(180deg, #141518 0%, #090a0d 34%, #040507 68%, #000000 100%);
+    radial-gradient(circle at 82% 24%, rgba(232, 101, 30, 0.18) 0%, rgba(232, 101, 30, 0.07) 20%, rgba(232, 101, 30, 0.00) 42%),
+    radial-gradient(circle at 14% 78%, rgba(232, 101, 30, 0.10) 0%, rgba(232, 101, 30, 0.04) 18%, rgba(232, 101, 30, 0.00) 38%),
+    radial-gradient(circle at 50% 0%, rgba(255, 138, 61, 0.10) 0%, rgba(255, 138, 61, 0.00) 30%),
+    linear-gradient(180deg, #16100b 0%, #0d0907 36%, #070403 70%, #000000 100%);
   background-attachment: fixed;
   color: var(--text);
   font-family: -apple-system, 'SF Pro Display', sans-serif;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100svh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   position: relative;
   isolation: isolate;
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
 }
-body::before {
-  content: '';
+/* 星空層：星星由 JS 動態生成，各自獨立閃爍 */
+#starfield {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background:
-    linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
-  background-size: 120px 120px;
-  opacity: 0.16;
-  mask-image: linear-gradient(180deg, rgba(0,0,0,0.85), rgba(0,0,0,0.25) 78%, transparent 100%);
-  -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,0.85), rgba(0,0,0,0.25) 78%, transparent 100%);
   z-index: -2;
+  overflow: hidden;
+}
+.star {
+  position: absolute;
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0;
+  animation: twinkle var(--dur, 3s) ease-in-out var(--delay, 0s) infinite;
+  will-change: opacity, transform;
+}
+.star.amber { background: var(--accent-soft); }
+@keyframes twinkle {
+  0%, 100% { opacity: 0.05; transform: scale(0.7); }
+  50%      { opacity: var(--peak, 0.9); transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .star { animation: none; opacity: 0.45; }
 }
 body::after {
   content: '';
@@ -156,58 +189,110 @@ body::after {
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(circle at 20% 18%, rgba(84, 190, 255, 0.12) 0%, rgba(84, 190, 255, 0.0) 34%),
-    radial-gradient(circle at 84% 28%, rgba(255, 183, 77, 0.12) 0%, rgba(255, 183, 77, 0.0) 32%),
-    radial-gradient(circle at 88% 86%, rgba(120, 96, 255, 0.10) 0%, rgba(120, 96, 255, 0.0) 28%);
-  filter: blur(28px);
+    radial-gradient(circle at 80% 22%, rgba(232, 101, 30, 0.14) 0%, rgba(232, 101, 30, 0.0) 34%),
+    radial-gradient(circle at 16% 80%, rgba(255, 138, 61, 0.10) 0%, rgba(255, 138, 61, 0.0) 30%),
+    radial-gradient(circle at 50% 50%, rgba(232, 101, 30, 0.05) 0%, rgba(232, 101, 30, 0.0) 40%);
+  filter: blur(30px);
   opacity: 0.95;
   z-index: -1;
 }
 
 /* ── Topbar ── */
 .topbar {
-  background: linear-gradient(180deg, rgba(16,16,18,0.84), rgba(9,9,11,0.72));
+  background: linear-gradient(180deg, rgba(12,9,7,0.90), rgba(6,4,3,0.78));
   backdrop-filter: var(--glass-blur) var(--glass-sat);
   -webkit-backdrop-filter: var(--glass-blur) var(--glass-sat);
-  border-bottom: 1px solid var(--glass-border);
+  border-bottom: 1px solid rgba(232,101,30,0.35);
+  box-shadow: 0 1px 0 rgba(232,101,30,0.25), 0 6px 24px rgba(232,101,30,0.10);
   padding: 14px 24px;
+  padding-top: calc(14px + env(safe-area-inset-top));
+  padding-left: calc(24px + env(safe-area-inset-left));
+  padding-right: calc(24px + env(safe-area-inset-right));
   display: flex; align-items: center; gap: 12px;
   flex-shrink: 0;
   position: sticky; top: 0; z-index: 100;
 }
 .topbar h1 {
-  font-size: 14px; letter-spacing: .25em; color: rgba(255,255,255,0.5);
+  font-size: 14px; letter-spacing: .25em; color: rgba(242,237,227,0.55);
   text-transform: uppercase; font-weight: 300;
 }
+.topbar .eyebrow {
+  font-size: 10px; letter-spacing: .3em; font-weight: 600;
+  color: var(--accent); text-transform: uppercase; margin-bottom: 2px;
+}
+.topbar-copy { display: flex; flex-direction: column; }
+.topbar-chip {
+  margin-left: auto;
+  font-size: 11px; letter-spacing: .08em;
+  color: rgba(242,237,227,0.6);
+  padding: 6px 14px; border-radius: 999px;
+  border: 1px solid rgba(232,101,30,0.4);
+  background: rgba(232,101,30,0.10);
+  white-space: nowrap;
+}
+.traffic-lights { display: flex; gap: 7px; margin-right: 6px; }
+.traffic-lights .light { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+.traffic-lights .red { background: #ff5f57; }
+.traffic-lights .amber { background: #febc2e; }
+.traffic-lights .green { background: #28c840; }
+@media(max-width:768px){ .topbar-chip { display: none; } }
 
-/* ── Layout ── */
+/* ── Layout ──
+   桌機不再用 100dvh 撐滿視窗高度：在「高度隨內容」的預覽視窗（如 Claude Desktop 預覽）裡，
+   100dvh 會與內容高度形成反饋循環，造成拖字級時整個 UI 忽大忽小。
+   改為內容決定總高、預覽區用固定高度，徹底切斷循環。 */
+/* ── Layout ──
+   兩欄各自固定在視窗高度內：左欄預覽不滾動（永遠看得到），右欄控制自己滾。
+   關鍵：容器高度由「視窗」決定、內容溢出就在欄內捲動 —— 這是單向的，
+   不會像「內容高度回頭決定容器高度」那樣形成反饋循環，所以不會忽大忽小。 */
 .main-layout {
   display: grid;
-  grid-template-columns: 1fr 380px;
-  flex: 1;
-  overflow: hidden;
+  grid-template-columns: minmax(0,1fr) 380px;
   height: calc(100vh - 52px);
+  height: calc(100svh - 52px);
+  overflow: hidden;
 }
 
-/* ── Preview ── */
+/* ── Preview（左欄：不滾動，永遠可見）── */
 .preview-col {
   display: flex; flex-direction: column;
-  padding: 20px; gap: 14px; overflow-y: auto;
+  padding: 20px; gap: 14px;
   background: transparent;
+  min-width: 0; min-height: 0;
+  overflow: hidden;
 }
 #canvasWrap {
   position: relative;
   border-radius: 20px; overflow: hidden;
-  background: rgba(26,26,46,0.7);
-  backdrop-filter: blur(10px);
+  background: #16100b;     /* 不透明預設底，擋住背後星光；透明模式由 JS 改成 transparent */
   border: 1px solid var(--glass-border);
-  flex: 1; min-height: 300px;
+  flex: 1;                 /* 填滿左欄剩餘高度；文字只在此區內縮放/裁切，不外溢 */
+  min-height: 0;
+  min-width: 0;
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 8px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06);
 }
+/* 透明模式：背景全透，看得到後面的星空 */
+#canvasWrap.bg-see-through { background: transparent !important; }
 #mockupImg {
   position: absolute; inset: 0; width: 100%; height: 100%;
   object-fit: cover; display: none; z-index: 0;
+}
+#mockupImg.tshirt-mode {
+  object-fit: contain !important;
+  object-position: center top;
+  display: block !important;
+}
+#canvasWrap.tshirt-mode {
+  background: #e8eaf0 !important;
+}
+#canvas.tshirt-mode {
+  background: transparent !important;
+  align-items: center;
+  padding-top: 30%;
+  padding-bottom: 8%;
+  padding-left: 22%;
+  padding-right: 22%;
 }
 #canvas {
   position: relative; z-index: 1;
@@ -269,18 +354,19 @@ body::after {
   color: rgba(255,255,255,0.6); font-size:12px; cursor:pointer;
   transition: all .18s; text-align:center;
 }
-.pos-btn:hover { background:var(--accent2); color:var(--accent); border-color:rgba(77,208,225,0.3); transform:scale(1.03); }
+.pos-btn:hover { background:var(--accent2); color:var(--accent); border-color:rgba(232,101,30,0.3); transform:scale(1.03); }
 .pos-btn:active { transform:scale(0.97); }
 .pos-btn.reset { background:rgba(255,207,145,0.07); color:rgba(255,207,145,0.7); border-color:rgba(255,207,145,0.15); }
 .pos-btn.reset:hover { background:rgba(255,207,145,0.15); color:#ffcf91; border-color:rgba(255,207,145,0.4); }
 
 /* ── Right Panel ── */
 .ctrl-col {
-  background: rgba(16,16,26,0.6);
+  background: rgba(14,10,7,0.62);
   backdrop-filter: var(--glass-blur) var(--glass-sat);
   -webkit-backdrop-filter: var(--glass-blur) var(--glass-sat);
   border-left: 1px solid var(--glass-border);
   overflow-y: auto; padding: 16px;
+  min-height: 0;
   display: flex; flex-direction: column; gap: 10px;
 }
 .ctrl {
@@ -320,7 +406,7 @@ input[type=range] {
 .num-input::-webkit-outer-spin-button,
 .num-input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
 .num-input:hover { border-color:rgba(255,255,255,0.12); background:rgba(255,255,255,0.07); }
-.num-input:focus { border-color:var(--accent); cursor:text; background:rgba(77,208,225,0.08); }
+.num-input:focus { border-color:var(--accent); cursor:text; background:rgba(232,101,30,0.08); }
 
 /* ── Font selector ── */
 .font-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
@@ -334,11 +420,11 @@ input[type=range] {
   transition: all .2s; text-align: center;
   backdrop-filter: blur(8px);
 }
-.font-btn:hover { background:var(--accent2); border-color:rgba(77,208,225,0.3); }
+.font-btn:hover { background:var(--accent2); border-color:rgba(232,101,30,0.3); }
 .font-btn.on {
   background: var(--accent2);
-  border-color: rgba(77,208,225,0.5);
-  box-shadow: 0 0 12px rgba(77,208,225,0.15), inset 0 1px 0 rgba(255,255,255,0.08);
+  border-color: rgba(232,101,30,0.5);
+  box-shadow: 0 0 12px rgba(232,101,30,0.15), inset 0 1px 0 rgba(255,255,255,0.08);
 }
 .font-btn .fp { font-size:26px; display:block; margin-bottom:4px; line-height:1.2; }
 .font-btn .fn { font-size:10px; color:rgba(255,255,255,0.35); }
@@ -357,7 +443,7 @@ input[type=range] {
   transition: all .2s;
   backdrop-filter: blur(8px);
 }
-.line-input:focus { border-color:rgba(77,208,225,0.5); background:rgba(77,208,225,0.06); }
+.line-input:focus { border-color:rgba(232,101,30,0.5); background:rgba(232,101,30,0.06); }
 .cc { font-size:10px; color:rgba(255,255,255,0.2); min-width:36px; text-align:right; }
 .rm-btn, .add-btn {
   width: 30px; height: 30px; border-radius: 8px;
@@ -368,14 +454,14 @@ input[type=range] {
   backdrop-filter: blur(8px);
 }
 .rm-btn:hover { border-color:rgba(255,138,128,0.4); color:#ff8a80; background:rgba(255,138,128,0.08); }
-.add-btn:hover { border-color:rgba(77,208,225,0.4); color:var(--accent); background:var(--accent2); }
+.add-btn:hover { border-color:rgba(232,101,30,0.4); color:var(--accent); background:var(--accent2); }
 .add-row { display:flex; justify-content:flex-end; margin-top:4px; }
 
 /* ── Offset ── */
 .offset-row { display:flex; gap:8px; align-items:center; }
 .offset-lbl { font-size:11px; color:var(--accent); min-width:88px; }
-.ctrl.offset-ctrl { border-color:rgba(77,208,225,0.15); }
-.ctrl.offset-ctrl label { color:rgba(77,208,225,0.6); }
+.ctrl.offset-ctrl { border-color:rgba(232,101,30,0.15); }
+.ctrl.offset-ctrl label { color:rgba(232,101,30,0.6); }
 
 /* ── Colour tabs ── */
 .tabs { display:flex; gap:6px; margin-bottom:12px; }
@@ -390,7 +476,7 @@ input[type=range] {
 .tab:hover { background:rgba(255,255,255,0.07); color:rgba(255,255,255,0.6); }
 .tab.on {
   background: var(--accent2);
-  border-color: rgba(77,208,225,0.4);
+  border-color: rgba(232,101,30,0.4);
   color: var(--accent); font-weight:500;
 }
 .swatches { display:flex; gap:6px; flex-wrap:wrap; }
@@ -419,6 +505,62 @@ input[type=color] {
 .grad-btn:hover { transform:scale(1.08); box-shadow:0 4px 12px rgba(0,0,0,0.4); }
 .grad-btn.on { border-color:#fff; box-shadow:0 0 10px rgba(255,255,255,0.25); }
 
+/* ── Custom colour studio ── */
+.cust-preview {
+  height: 26px; border-radius: 8px; margin-bottom: 10px;
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.15);
+}
+.cust-targets { display:flex; gap:6px; margin-bottom:10px; }
+.cust-target {
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:5px;
+  padding:7px 4px; border-radius:10px; cursor:pointer;
+  border:1px solid var(--glass-border); background:rgba(255,255,255,0.04);
+  transition:all .18s; font-size:10px; color:rgba(255,255,255,0.4);
+}
+.cust-target:hover { background:rgba(255,255,255,0.07); }
+.cust-target.on { border-color:rgba(232,101,30,0.5); background:var(--accent2); color:var(--accent); }
+.chip-input {
+  width:100% !important; height:22px !important; border-radius:5px !important;
+  padding:0 !important; border:1px solid rgba(255,255,255,0.18) !important;
+  background:transparent !important; cursor:pointer; box-shadow:none !important;
+}
+.chip-input::-webkit-color-swatch-wrapper { padding:0; }
+.chip-input::-webkit-color-swatch { border:none; border-radius:4px; }
+.chip-input::-moz-color-swatch { border:none; border-radius:4px; }
+.cust-modes { display:flex; gap:6px; margin-bottom:10px; }
+.cust-mode {
+  flex:1; padding:6px; border-radius:18px; cursor:pointer; font-size:11px; text-align:center;
+  border:1px solid var(--glass-border); background:rgba(255,255,255,0.04);
+  color:rgba(255,255,255,0.4); transition:all .18s; backdrop-filter:blur(8px);
+}
+.cust-mode:hover { background:rgba(255,255,255,0.07); color:rgba(255,255,255,0.65); }
+.cust-mode.on { border-color:rgba(232,101,30,0.4); background:var(--accent2); color:var(--accent); font-weight:500; }
+/* 方塊色票：Material 風格（色系×明暗階），可橫向捲動 */
+.cust-swatch-grid { display:flex; gap:3px; overflow-x:auto; padding-bottom:6px; scrollbar-width:thin; }
+.cust-swatch-grid::-webkit-scrollbar{ height:6px; }
+.cust-swatch-grid::-webkit-scrollbar-thumb{ background:rgba(255,255,255,0.2); border-radius:3px; }
+.mat-col { display:flex; flex-direction:column; gap:3px; flex:0 0 auto; }
+.mat-col-name { font-size:8px; color:rgba(255,255,255,0.3); text-align:center; height:11px; line-height:11px; overflow:hidden; white-space:nowrap; }
+.cust-sw {
+  width:24px; height:18px; border-radius:4px; cursor:pointer;
+  border:2px solid transparent; transition:transform .1s, border-color .1s, box-shadow .1s;
+}
+.cust-sw:hover { transform:scale(1.25); border-color:#fff; box-shadow:0 2px 8px rgba(0,0,0,0.5); position:relative; z-index:3; }
+/* HSL 滑桿 */
+.hsl-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.hsl-row label { width:18px; margin:0; font-size:11px; color:rgba(255,255,255,0.45); letter-spacing:0; }
+.hsl-row input[type=range]{ flex:1; }
+.hsl-row .num-input{ min-width:48px; }
+.hsl-hue { background:linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)!important; height:8px; border-radius:4px; -webkit-appearance:none; appearance:none; }
+/* 色輪 */
+.wheel-wrap { display:flex; flex-direction:column; align-items:center; gap:10px; }
+#custWheelCanvas { border-radius:50%; cursor:crosshair; box-shadow:0 2px 12px rgba(0,0,0,0.35); touch-action:none; }
+.wheel-val-row { display:flex; align-items:center; gap:8px; width:100%; }
+.wheel-val-row label { width:32px; margin:0; font-size:11px; color:rgba(255,255,255,0.45); }
+.wheel-val-row input[type=range]{ flex:1; }
+.cust-hint { font-size:10px; color:rgba(255,255,255,0.28); margin-top:8px; line-height:1.5; }
+
 /* ── Background buttons ── */
 .bg-row { display:flex; gap:6px; flex-wrap:wrap; }
 .bg-btn {
@@ -429,8 +571,8 @@ input[type=color] {
   font-size: 11px; padding: 7px 4px; border-radius: 8px;
   cursor: pointer; transition: all .2s; backdrop-filter: blur(8px);
 }
-.bg-btn:hover { background:var(--accent2); color:var(--accent); border-color:rgba(77,208,225,0.3); }
-.bg-btn.on { background:var(--accent2); color:var(--accent); border-color:rgba(77,208,225,0.5); }
+.bg-btn:hover { background:var(--accent2); color:var(--accent); border-color:rgba(232,101,30,0.3); }
+.bg-btn.on { background:var(--accent2); color:var(--accent); border-color:rgba(232,101,30,0.5); }
 
 /* ── Export buttons ── */
 .export-row { display:flex; gap:8px; flex-wrap:wrap; }
@@ -454,9 +596,9 @@ input[type=color] {
   text-shadow: 0 1px 0 rgba(255,255,255,0.35);
 }
 .exp-freeze {
-  background: linear-gradient(135deg, rgba(77,208,225,0.2), rgba(77,208,225,0.1));
+  background: linear-gradient(135deg, rgba(232,101,30,0.2), rgba(232,101,30,0.1));
   backdrop-filter: blur(12px); color: var(--accent);
-  border: 1px solid rgba(77,208,225,0.35);
+  border: 1px solid rgba(232,101,30,0.35);
   font-size: 13px;
 }
 .exp-btn:hover { opacity:.88; transform:translateY(-1px); box-shadow:0 6px 20px rgba(0,0,0,0.35); }
@@ -470,7 +612,7 @@ input[type=color] {
   font-size: 12px; cursor: pointer; transition: all .2s;
   display: flex; align-items: center; justify-content: center; gap: 6px;
 }
-.mockup-btn:hover { border-color:rgba(77,208,225,0.4); color:var(--accent); background:var(--accent2); }
+.mockup-btn:hover { border-color:rgba(232,101,30,0.4); color:var(--accent); background:var(--accent2); }
 .mockup-btn.has-img { border-style:solid; border-color:rgba(105,240,174,0.4); color:#69f0ae; background:rgba(105,240,174,0.07); }
 .rm-mockup {
   padding: 11px 14px; border-radius: var(--radius-sm);
@@ -488,14 +630,48 @@ input[type=color] {
 
 /* mobile */
 @media(max-width:768px){
-  .main-layout{ grid-template-columns:1fr; height:auto; overflow:visible; }
-  .ctrl-col{ border-left:none; border-top:1px solid var(--glass-border); }
-  #canvasWrap{ min-height:280px; }
+  html, body{ height:auto; overflow:visible; }
+  .main-layout{ grid-template-columns:minmax(0,1fr); height:auto; overflow:visible; }
+  .preview-col{ overflow:visible; }
+  .ctrl-col{
+    border-left:none; border-top:1px solid var(--glass-border);
+    overflow:visible; min-height:0;
+    padding-left: calc(16px + env(safe-area-inset-left));
+    padding-right: calc(16px + env(safe-area-inset-right));
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+  .preview-col{
+    padding-left: calc(20px + env(safe-area-inset-left));
+    padding-right: calc(20px + env(safe-area-inset-right));
+  }
+  /* 鎖死預覽區高度，避免文字變大時整頁 reflow 造成「跟著滑」「忽大忽小」 */
+  #canvasWrap{
+    height: min(65vh, 520px);
+    height: min(65dvh, 520px);
+    min-height: 280px;
+    max-height: 65dvh;
+    flex: none;
+  }
+  /* 滑桿觸控只允許水平拖動，避免拖動時觸發頁面垂直滾動 */
+  input[type="range"]{ touch-action: pan-x; height: 22px; }
+  /* iOS 上 16px 以下會觸發自動放大，輸入框維持 16px */
+  .line-input{ font-size:16px; }
+  /* 觸控目標放大一點，符合 iOS 44px 建議 */
+  .pos-btn{ padding:12px; }
+  .font-btn{ padding:12px 6px; }
+}
+
+/* iPhone 橫放：左右也要避開瀏海 */
+@supports(padding:env(safe-area-inset-left)){
+  @media(max-width:768px) and (orientation:landscape){
+    .topbar{ padding-left: calc(24px + env(safe-area-inset-left)); padding-right: calc(24px + env(safe-area-inset-right)); }
+  }
 }
 
 </style>
 </head>
 <body>
+<div id="starfield" aria-hidden="true"></div>
 <div class="topbar">
   <div class="traffic-lights" aria-hidden="true">
     <span class="light red"></span>
@@ -506,7 +682,7 @@ input[type=color] {
     <div class="eyebrow">JELLY TYPE STUDIO</div>
     <h1>果凍字設計工具</h1>
   </div>
-  <div class="topbar-chip">iOS Frosted UI</div>
+  <div class="topbar-chip">繁體中文字 · 每個人的心裡話</div>
 </div>
 
 <div class="main-layout">
@@ -558,13 +734,16 @@ input[type=color] {
     <div class="ctrl">
       <label>匯出 ＆ Mockup</label>
       <div class="export-row">
+      <div class="export-row" style="margin-top:8px;">
         <button class="exp-btn exp-freeze" id="freezeBtn" onclick="toggleFreeze()">❄️ 凍結畫面</button>
+        <button class="exp-btn" onclick="confirmReset()" style="background:rgba(255,138,128,0.12);color:#ff8a80;border:1px solid rgba(255,138,128,0.3);">♻️ 重設全部</button>
       </div>
       <div class="export-row" style="margin-top:8px;">
         <button class="exp-btn exp-png" onclick="exportPNG(false)">📥 透明PNG</button>
         <button class="exp-btn exp-hires" onclick="exportPNG(true)">🔬 高解析4K</button>
       </div>
       <div class="export-row" style="margin-top:8px;">
+        <button class="mockup-btn" id="tshirtBtn" onclick="toggleTshirt()">👕 T恤預覽</button>
         <label class="mockup-btn" id="mockupLabel" for="mockupFileInput">🎽 上傳底圖</label>
         <input type="file" id="mockupFileInput" accept="image/*" onchange="loadMockup(this)">
         <button class="rm-mockup" id="rmMockupBtn" onclick="removeMockup()" style="display:none;">✕ 移除</button>
@@ -671,10 +850,10 @@ input[type=color] {
     <div class="ctrl">
       <label>字體大小</label>
       <div class="rrow">
-        <input type="range" id="szSlider" min="20" max="120" value="68"
+        <input type="range" id="szSlider" min="4" max="35" value="32"
           oninput="this.nextElementSibling.value=this.value;render()">
-        <input class="num-input" id="szVal" type="number" value="68" min="20" max="120"
-          onchange="var v=Math.min(Math.max(parseInt(this.value)||20,20),120);this.value=v;document.getElementById('szSlider').value=v;render()" onclick="this.select()">
+        <input class="num-input" id="szVal" type="number" value="32" min="4" max="35"
+          onchange="var v=Math.min(Math.max(parseInt(this.value)||4,4),35);this.value=v;document.getElementById('szSlider').value=v;render()" onclick="this.select()">
       </div>
     </div>
 
@@ -732,7 +911,7 @@ input[type=color] {
     <div class="ctrl">
       <label>背景</label>
       <div class="bg-row">
-        <button class="bg-btn on" onclick="setBg('#1a1a2e',this)">深藍</button>
+        <button class="bg-btn on" onclick="setBg('#16100b',this)">暖黑</button>
         <button class="bg-btn" onclick="setBg('#000',this)">黑</button>
         <button class="bg-btn" onclick="setBg('#fff',this)">白</button>
         <button class="bg-btn" onclick="setBg('#f0ede8',this)">米白</button>
@@ -751,14 +930,63 @@ input[type=color] {
       </div>
       <div id="tab-preset"><div class="swatches" id="swatches"></div></div>
       <div id="tab-solid" style="display:none"><div class="picker-row" style="align-items:center;gap:14px;">
-        <div class="picker-group"><input type="color" id="solidColor" value="#4dd0e1" oninput="applySolidColor()"><span>顏色</span></div>
-        <span style="font-size:11px;color:rgba(255,255,255,0.3);line-height:1.5;">單一純色，無漸層效果</span>
+        <div class="picker-group"><input type="color" id="solidColor" value="#e8651e" oninput="applySolidColor()"><span>顏色</span></div>
+        <span style="font-size:11px;color:rgba(242,237,227,0.4);line-height:1.5;">單一純色，無漸層效果</span>
       </div></div>
-      <div id="tab-custom" style="display:none"><div class="picker-row">
-        <div class="picker-group"><input type="color" id="customTop" value="#4dd0e1" oninput="applyCustomColor()"><span>頂部</span></div>
-        <div class="picker-group"><input type="color" id="customMid" value="#0097a7" oninput="applyCustomColor()"><span>中段</span></div>
-        <div class="picker-group"><input type="color" id="customBot" value="#004d5e" oninput="applyCustomColor()"><span>底部</span></div>
-      </div></div>
+      <div id="tab-custom" style="display:none">
+        <!-- 即時漸層預覽 -->
+        <div class="cust-preview" id="custPreview"></div>
+
+        <!-- 四個色標：點色塊 → 跳出系統完整調色盤（色輪／光譜／色票／蠟筆＝更多選擇）-->
+        <div class="cust-targets">
+          <div class="cust-target on" id="ctgt-top" onclick="setCustomTarget('top')">
+            <input type="color" class="chip-input" id="customTop" value="#ffb74d"
+              oninput="onStopColor('top')">頂部
+          </div>
+          <div class="cust-target" id="ctgt-mid" onclick="setCustomTarget('mid')">
+            <input type="color" class="chip-input" id="customMid" value="#e8651e"
+              oninput="onStopColor('mid')">中段
+          </div>
+          <div class="cust-target" id="ctgt-bot" onclick="setCustomTarget('bot')">
+            <input type="color" class="chip-input" id="customBot" value="#8a2d0a"
+              oninput="onStopColor('bot')">底部
+          </div>
+        </div>
+        <div class="cust-hint" style="margin:-4px 0 10px;">👆 點色塊 = 系統完整調色盤（色輪／光譜／色票／蠟筆）。下面三種是 inline 快速挑色，作用於目前選中的色塊。</div>
+
+        <!-- 三種 inline 調色方式 -->
+        <div class="cust-modes">
+          <div class="cust-mode on" id="cmode-swatch" onclick="setCustomSub('swatch')">🎨 方塊</div>
+          <div class="cust-mode" id="cmode-slider" onclick="setCustomSub('slider')">🎚️ 滑桿</div>
+          <div class="cust-mode" id="cmode-wheel" onclick="setCustomSub('wheel')">🎡 色輪</div>
+        </div>
+
+        <!-- 方塊：Material 色票網格 -->
+        <div id="csub-swatch"><div class="cust-swatch-grid" id="custSwGrid"></div></div>
+
+        <!-- 滑桿：HSL -->
+        <div id="csub-slider" style="display:none">
+          <div class="hsl-row"><label>H</label>
+            <input type="range" class="hsl-hue" id="hslH" min="0" max="360" value="187" oninput="onHslInput()">
+            <input class="num-input" id="hslHv" type="number" min="0" max="360" value="187" onchange="hslNumSync()" onclick="this.select()"></div>
+          <div class="hsl-row"><label>S</label>
+            <input type="range" id="hslS" min="0" max="100" value="62" oninput="onHslInput()">
+            <input class="num-input" id="hslSv" type="number" min="0" max="100" value="62" onchange="hslNumSync()" onclick="this.select()"></div>
+          <div class="hsl-row"><label>L</label>
+            <input type="range" id="hslL" min="0" max="100" value="59" oninput="onHslInput()">
+            <input class="num-input" id="hslLv" type="number" min="0" max="100" value="59" onchange="hslNumSync()" onclick="this.select()"></div>
+        </div>
+
+        <!-- 色輪 -->
+        <div id="csub-wheel" style="display:none">
+          <div class="wheel-wrap">
+            <canvas id="custWheelCanvas" width="180" height="180"></canvas>
+            <div class="wheel-val-row"><label>亮度</label>
+              <input type="range" id="wheelV" min="0" max="100" value="70" oninput="drawWheel();onWheelValInput()">
+              <input class="num-input" id="wheelVv" type="number" min="0" max="100" value="70" onchange="document.getElementById('wheelV').value=this.value;drawWheel();onWheelValInput()" onclick="this.select()"></div>
+          </div>
+        </div>
+      </div>
       <div id="tab-gradient" style="display:none"><div class="grad-grid" id="gradGrid"></div></div>
     </div>
 
@@ -770,9 +998,10 @@ input[type=color] {
 let lines = ['你的出發點很好', '但請你先別出發'];
 let offsets = [0, 0];
 let mockupDataUrl = null;
-let currentBg = '#1a1a2e';
+let currentBg = '#16100b';
 let posX = 0, posY = 0, step = 5;
 let curFont = "'Cubic11',sans-serif";
+let curFontKey = 'cubic11';
 
 // ── Font ──────────────────────────────────────────────
 function setFont(key, btn) {
@@ -799,20 +1028,22 @@ function setFont(key, btn) {
     shanhu: "'ShanHu',sans-serif",
     xiangcui: "'XiangCuiLingDuHei',sans-serif"
   };
-  curFont = fontMap[key] || fontMap.maoken;
+  curFont = fontMap[key] || fontMap.cubic11;
+  curFontKey = fontMap[key] ? key : 'cubic11';
   render();
 }
 
 // ── Position ──────────────────────────────────────────
 function move(dx,dy) { posX+=dx; posY+=dy; applyPos(); }
 function resetPos() { posX=0; posY=0; applyPos(); }
-function setStep(s,btn) { step=s; document.querySelectorAll('.step-btn').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); }
+function setStep(s,btn) { step=s; document.querySelectorAll('.step-btn').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); persist(); }
 let autoScale = 1; // 自動縮放比例
 let fitEnabled = true; // 是否啟用自動縮放
 function applyPos() {
   const block=document.getElementById('text-block');
   block.style.transform=`translate(${posX}px,${posY}px) scale(${autoScale})`;
   document.getElementById('posReadout').textContent=`X ${posX} / Y ${posY}`;
+  persist();
 }
 
 // 自動縮放：測量文字是否超出畫布，超出就縮小
@@ -820,21 +1051,21 @@ function fitToCanvas(){
   if(!fitEnabled){ autoScale=1; applyPos(); return; }
   const block=document.getElementById('text-block');
   const canvas=document.getElementById('canvas');
-  // 先還原成1倍才能量到真實尺寸
-  autoScale=1;
-  block.style.transform=`translate(${posX}px,${posY}px) scale(1)`;
   // 量測（扣掉canvas的padding）
   const cs=getComputedStyle(canvas);
   const padX=parseFloat(cs.paddingLeft)+parseFloat(cs.paddingRight);
   const padY=parseFloat(cs.paddingTop)+parseFloat(cs.paddingBottom);
   const availW=canvas.clientWidth-padX;
   const availH=canvas.clientHeight-padY;
-  // 用 getBoundingClientRect 取得真實視覺尺寸，才能正確反映負 margin 的重疊效果
-  const blockRect=block.getBoundingClientRect();
-  const bw=blockRect.width, bh=blockRect.height;
+  // 用 offsetWidth/offsetHeight（佈局尺寸）量測：不受 transform(scale) 影響，
+  // 所以「不需要」先把文字設成 scale(1) 再量 —— 那會在字級放大瞬間撐出超大佈局、
+  // 觸發整頁 reflow（捲軸/grid 重算），導致工具列跟著忽大忽小。直接量即可。
+  const bw=block.offsetWidth, bh=block.offsetHeight;
   if(bw>0 && bh>0){
     const scale=Math.min(availW/bw, availH/bh, 1); // 最多1倍，只縮不放
     autoScale=scale>0?scale:1;
+  } else {
+    autoScale=1; // 沒有文字可量時復位
   }
   applyPos();
 }
@@ -846,7 +1077,10 @@ function loadMockup(input) {
   reader.onload=e=>{
     mockupDataUrl=e.target.result;
     const img=document.getElementById('mockupImg');
+    const wrap=document.getElementById('canvasWrap');
     img.src=mockupDataUrl; img.style.display='block';
+    wrap.classList.remove('bg-see-through');
+    wrap.style.background='#16100b';   // 底圖若有透明區，露出的是暖黑而非星空
     document.getElementById('canvas').classList.add('has-mockup');
     document.getElementById('canvas').style.background='transparent';
     document.getElementById('mockupLabel').classList.add('has-img');
@@ -857,16 +1091,65 @@ function loadMockup(input) {
 }
 function removeMockup() {
   mockupDataUrl=null;
-  document.getElementById('mockupImg').style.display='none';
-  document.getElementById('mockupImg').src='';
-  document.getElementById('canvas').classList.remove('has-mockup');
-  document.getElementById('canvas').style.background=currentBg;
+  const img=document.getElementById('mockupImg');
+  const canvas=document.getElementById('canvas');
+  const wrap=document.getElementById('canvasWrap');
+  if(!tshirtActive){
+    img.style.display='none'; img.src='';
+    img.classList.remove('tshirt-mode');
+    canvas.classList.remove('has-mockup','tshirt-mode');
+    wrap.classList.remove('tshirt-mode');
+    applyCanvasBg();
+  }
   document.getElementById('mockupLabel').classList.remove('has-img');
   document.getElementById('mockupLabel').innerHTML='🎽 上傳底圖';
   document.getElementById('rmMockupBtn').style.display='none';
   document.getElementById('mockupFileInput').value='';
 }
 
+
+
+// ── T-shirt mockup ─────────────────────────────────────
+let tshirtActive = false;
+
+function toggleTshirt() {
+  const img = document.getElementById('mockupImg');
+  const wrap = document.getElementById('canvasWrap');
+  const canvas = document.getElementById('canvas');
+  const btn = document.getElementById('tshirtBtn');
+
+  if (tshirtActive) {
+    // 關閉
+    tshirtActive = false;
+    img.classList.remove('tshirt-mode');
+    wrap.classList.remove('tshirt-mode');
+    canvas.classList.remove('has-mockup', 'tshirt-mode');
+    img.style.display = 'none';
+    img.src = '';
+    btn.classList.remove('has-img');
+    btn.innerHTML = '👕 T恤預覽';
+    applyCanvasBg();
+  } else {
+    // 開啟：先清掉上傳底圖
+    tshirtActive = true;
+    mockupDataUrl = null;
+    document.getElementById('mockupFileInput').value = '';
+    document.getElementById('mockupLabel').classList.remove('has-img');
+    document.getElementById('mockupLabel').innerHTML = '🎽 上傳底圖';
+    document.getElementById('rmMockupBtn').style.display = 'none';
+
+    // 用 data URI，不用 Blob，避免 file:// 安全限制
+    img.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2MDAgNTgwIj4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iZmFicmljRyIgeDE9IjAiIHkxPSIwIiB4Mj0iMC4zIiB5Mj0iMSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiNmOGY4ZjgiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjZTBlMGUwIi8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJzbGVldmVMIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiNlZWVlZWUiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjZDBkMGQwIi8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJzbGVldmVSIiB4MT0iMSIgeTE9IjAiIHgyPSIwIiB5Mj0iMSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiNlZWVlZWUiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjZDBkMGQwIi8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogIDwvZGVmcz4KICA8IS0tIOW3puiiliAtLT4KICA8cGF0aCBkPSJNMjUsODUgQzUsOTUgLTUsMTQ4IDMsMTkyIEMxMCwyMjUgMzIsMjM1IDU4LDIyOCBMMTEyLDIxOCBMMTMzLDEwNSBDMTAzLDg4IDU4LDc0IDI1LDg1WiIKICAgICAgICBmaWxsPSJ1cmwoI3NsZWV2ZUwpIiBzdHJva2U9IiNjMGMwYzAiIHN0cm9rZS13aWR0aD0iMS41Ii8+CiAgPCEtLSDlj7PoopYgLS0+CiAgPHBhdGggZD0iTTU3NSw4NSBDNTk1LDk1IDYwNSwxNDggNTk3LDE5MiBDNTkwLDIyNSA1NjgsMjM1IDU0MiwyMjggTDQ4OCwyMTggTDQ2NywxMDUgQzQ5Nyw4OCA1NDIsNzQgNTc1LDg1WiIKICAgICAgICBmaWxsPSJ1cmwoI3NsZWV2ZVIpIiBzdHJva2U9IiNjMGMwYzAiIHN0cm9rZS13aWR0aD0iMS41Ii8+CiAgPCEtLSDooaPouqsgLS0+CiAgPHBhdGggZD0iTTEzMywxMDUgTDExMiwyMTggTDYyLDUzNSBMNTM4LDUzNSBMNDg4LDIxOCBMNDY3LDEwNQogICAgICAgICAgIEM0MzgsNzggMzgyLDU2IDM0Miw1MyBMMzQyLDkzIEMzNDIsMTA3IDMyMiwxMTkgMzAwLDExOQogICAgICAgICAgIEMyNzgsMTE5IDI1OCwxMDcgMjU4LDkzIEwyNTgsNTMKICAgICAgICAgICBDMjE4LDU2IDE2Miw3OCAxMzMsMTA1WiIKICAgICAgICBmaWxsPSJ1cmwoI2ZhYnJpY0cpIiBzdHJva2U9IiNjMGMwYzAiIHN0cm9rZS13aWR0aD0iMS41Ii8+CiAgPCEtLSDpoJjlj6MgLS0+CiAgPHBhdGggZD0iTTI1OCw1MyBRMzAwLDEzMCAzNDIsNTMiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2I4YjhiOCIgc3Ryb2tlLXdpZHRoPSIyLjUiLz4KICA8IS0tIOeauuiktiAtLT4KICA8cGF0aCBkPSJNMTk4LDE4NSBRMjA4LDMyMCAyMDMsNDgwIiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAxMiIgc3Ryb2tlLXdpZHRoPSIyLjUiLz4KICA8cGF0aCBkPSJNNDAyLDE4NSBRMzkyLDMyMCAzOTcsNDgwIiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAxMiIgc3Ryb2tlLXdpZHRoPSIyLjUiLz4KICA8cGF0aCBkPSJNMzAwLDE2NSBRMzA0LDMxMCAzMDEsNTEwIiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAwYSIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgPCEtLSDoopblj6MgLS0+CiAgPHBhdGggZD0iTTgsMjAwIFEyOCwyMDQgNTUsMjAyIiBmaWxsPSJub25lIiBzdHJva2U9IiNiOGI4YjgiIHN0cm9rZS13aWR0aD0iMS41Ii8+CiAgPHBhdGggZD0iTTU5MiwyMDAgUTU3MiwyMDQgNTQ1LDIwMiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYjhiOGI4IiBzdHJva2Utd2lkdGg9IjEuNSIvPgogIDwhLS0g5bqV6YOo6Zmw5b2xIC0tPgogIDxwYXRoIGQ9Ik02Miw1MzUgTDUzOCw1MzUgTDUzNSw1NDUgTDY1LDU0NVoiIGZpbGw9IiMwMDAwMDAxOCIvPgo8L3N2Zz4=';
+    img.classList.add('tshirt-mode');
+    img.style.display = 'block';
+    wrap.classList.remove('bg-see-through');
+    wrap.classList.add('tshirt-mode');
+    canvas.classList.add('has-mockup', 'tshirt-mode');
+    canvas.style.background = 'transparent';
+    btn.classList.add('has-img');
+    btn.innerHTML = '✅ T恤預覽中';
+  }
+}
 
 // ── External full font export support ─────────────────
 const EXTERNAL_FONT_FILES = [
@@ -916,10 +1199,11 @@ function fetchWithTimeout(url, ms) {
 }
 
 // 只抓「目前選用」的那一個字型，其餘不抓 → 秒匯出
+// 抓不到時「丟錯」而非靜默回空字串，讓匯出流程能攔下來提醒使用者
 async function getExternalFontCSS() {
   const activeFamily = getActiveFontFamily();
   const font = EXTERNAL_FONT_FILES.find(f => f.family === activeFamily);
-  if (!font) return '';
+  if (!font) return ''; // 系統字（無需嵌入），正常情況
   try {
     if (!externalFontCache[font.url]) {
       const res = await fetchWithTimeout(font.url, 12000);
@@ -929,8 +1213,11 @@ async function getExternalFontCSS() {
     }
     return `@font-face{font-family:'${font.family}';src:url('data:${font.mime};base64,${externalFontCache[font.url]}') format('${font.format}');}`;
   } catch (err) {
-    console.warn('External font export skipped:', font.url, err);
-    return '';
+    console.warn('External font export failed:', font.url, err);
+    const e = new Error('FONT_EMBED_FAILED');
+    e.code = 'FONT_EMBED_FAILED';
+    e.family = font.family;
+    throw e;
   }
 }
 
@@ -952,14 +1239,32 @@ async function exportPNG(hiRes) {
 
   prog.textContent=hiRes?'⏳ 渲染高解析中...':'⏳ 渲染透明 PNG 中...';
   document.querySelectorAll('.jelly-char,.col').forEach(el=>{el.style.animationPlayState='paused';});
+  const block0=document.getElementById('text-block');
+  let savedTransform = block0.style.transform; // 提到 try 外，catch 才讀得到
   try {
     if (document.fonts && document.fonts.ready) await document.fonts.ready;
-    const externalFontCSS = await getExternalFontCSS();
-    const block=document.getElementById('text-block');
+    let externalFontCSS = '';
+    try {
+      externalFontCSS = await getExternalFontCSS();
+    } catch (fe) {
+      if (fe && fe.code === 'FONT_EMBED_FAILED') {
+        const go = confirm('⚠️ 字型「'+(fe.family||'')+'」載入失敗（可能是網路或 CDN 問題）。\n\n現在匯出的話，圖片裡的字會變成系統預設字體，而不是你選的字型。\n\n要繼續匯出嗎？（建議按「取消」，檢查網路後重試）');
+        if (!go) {
+          if(preWin && !preWin.closed) preWin.close();
+          prog.textContent='⏸ 已取消，請檢查網路後重試';
+          document.querySelectorAll('.jelly-char,.col').forEach(el=>{el.style.animationPlayState='';});
+          setTimeout(()=>prog.textContent='',6000);
+          return;
+        }
+        externalFontCSS = ''; // 使用者堅持，用系統字匯出
+      } else {
+        throw fe;
+      }
+    }
+    const block=block0;
     const canvasEl=document.getElementById('canvas');
 
     // 暫時把 autoScale 拿掉，讓文字回到 100%，才能量到真實尺寸
-    const savedTransform = block.style.transform;
     block.style.transform = `translate(${posX}px,${posY}px) scale(1)`;
     // 等瀏覽器 layout 更新
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -1084,7 +1389,7 @@ function rebuildOffsets() {
     row.className='offset-row';
     row.innerHTML=`
       <span class="offset-lbl">${lbl}</span>
-      <input type="range" min="-200" max="200" value="${offsets[i]}" style="flex:1;accent-color:#88ccff;"
+      <input type="range" min="-200" max="200" value="${offsets[i]}" style="flex:1;accent-color:var(--accent-soft);"
         oninput="offsets[${i}]=parseInt(this.value);document.getElementById('ov${i}').value=this.value;applyOffsets()">
       <input class="num-input" id="ov${i}" type="number" value="${offsets[i]}" min="-200" max="200" onclick="this.select()"
         onchange="var v=Math.min(Math.max(parseInt(this.value)||0,-200),200);this.value=v;offsets[${i}]=v;document.querySelectorAll('#offsetSliders input[type=range]')[${i}].value=v;applyOffsets();">
@@ -1112,6 +1417,7 @@ function applyOffsets() {
       // marginLeft 由 applyGaps 控制，這裡不動
     }
   });
+  persist();
 }
 
 // ── Colours ───────────────────────────────────────────
@@ -1169,10 +1475,199 @@ function switchTab(tab,btn){
   document.getElementById('tab-solid').style.display=tab==='solid'?'':'none';
   document.getElementById('tab-custom').style.display=tab==='custom'?'':'none';
   document.getElementById('tab-gradient').style.display=tab==='gradient'?'':'none';
+  if(tab==='custom') customEnter();
   render();
 }
 function applyCustomColor(){colorMode='custom';render();}
 function applySolidColor(){colorMode='solid';render();}
+
+// ── 自訂顏色：三種調色方式（方塊 / 滑桿 / 色輪）─────────
+let customTarget='top';   // 'top' | 'mid' | 'bot'
+let customSub='swatch';   // 'swatch' | 'slider' | 'wheel'
+const CUST_INPUT={top:'customTop', mid:'customMid', bot:'customBot'};
+
+// ── 色彩轉換工具 ──
+function rgb2hex(r,g,b){const h=n=>('0'+Math.round(Math.max(0,Math.min(255,n))).toString(16)).slice(-2);return '#'+h(r)+h(g)+h(b);}
+function hsl2rgb(h,s,l){h/=360;s/=100;l/=100;let r,g,b;if(s===0){r=g=b=l;}else{const hue2rgb=(p,q,t)=>{if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;};const q=l<0.5?l*(1+s):l+s-l*s;const p=2*l-q;r=hue2rgb(p,q,h+1/3);g=hue2rgb(p,q,h);b=hue2rgb(p,q,h-1/3);}return{r:r*255,g:g*255,b:b*255};}
+function rgb2hsl(r,g,b){r/=255;g/=255;b/=255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b);let h,s,l=(mx+mn)/2;if(mx===mn){h=s=0;}else{const d=mx-mn;s=l>0.5?d/(2-mx-mn):d/(mx+mn);switch(mx){case r:h=(g-b)/d+(g<b?6:0);break;case g:h=(b-r)/d+2;break;default:h=(r-g)/d+4;}h/=6;}return{h:Math.round(h*360),s:Math.round(s*100),l:Math.round(l*100)};}
+function hsv2rgb(h,s,v){h/=360;const i=Math.floor(h*6),f=h*6-i,p=v*(1-s),q=v*(1-f*s),t=v*(1-(1-f)*s);let r,g,b;switch(i%6){case 0:r=v;g=t;b=p;break;case 1:r=q;g=v;b=p;break;case 2:r=p;g=v;b=t;break;case 3:r=p;g=q;b=v;break;case 4:r=t;g=p;b=v;break;default:r=v;g=p;b=q;}return{r:r*255,g:g*255,b:b*255};}
+
+// 取得 / 寫入目前色標
+function curTargetHex(){return document.getElementById(CUST_INPUT[customTarget]).value;}
+let _rafRender=null;
+function renderSoon(){ if(_rafRender)return; _rafRender=requestAnimationFrame(()=>{_rafRender=null;render();}); }
+function writeTargetHex(hex){
+  document.getElementById(CUST_INPUT[customTarget]).value=hex; // input[type=color] 自身會顯示新色
+  updateCustPreview();
+  colorMode='custom';
+  renderSoon();
+}
+// 系統原生色票（input[type=color]）改變時
+function onStopColor(t){
+  customTarget=t;
+  ['top','mid','bot'].forEach(k=>document.getElementById('ctgt-'+k).classList.toggle('on',k===t));
+  updateCustPreview();
+  syncCustomUI();
+  colorMode='custom';
+  renderSoon();
+}
+
+function updateCustPreview(){
+  const t=document.getElementById('customTop').value;
+  const m=document.getElementById('customMid').value;
+  const b=document.getElementById('customBot').value;
+  document.getElementById('custPreview').style.background=`linear-gradient(to top, ${b} 0%, ${m} 45%, ${t} 100%)`;
+}
+
+function setCustomTarget(t){
+  customTarget=t;
+  ['top','mid','bot'].forEach(k=>document.getElementById('ctgt-'+k).classList.toggle('on',k===t));
+  syncCustomUI(); // 讓滑桿/色輪反映新目標的顏色
+}
+function setCustomSub(mode){
+  customSub=mode;
+  ['swatch','slider','wheel'].forEach(k=>{
+    document.getElementById('cmode-'+k).classList.toggle('on',k===mode);
+    document.getElementById('csub-'+k).style.display = (k===mode)?'':'none';
+  });
+  syncCustomUI();
+  if(mode==='wheel') drawWheel();
+}
+
+// 把目前目標色標的顏色，反映到「目前顯示中的那個介面」
+function syncCustomUI(){
+  const {r,g,b}=h2rgb(curTargetHex());
+  if(customSub==='slider'){
+    const {h,s,l}=rgb2hsl(r,g,b);
+    document.getElementById('hslH').value=h; document.getElementById('hslHv').value=h;
+    document.getElementById('hslS').value=s; document.getElementById('hslSv').value=s;
+    document.getElementById('hslL').value=l; document.getElementById('hslLv').value=l;
+  }else if(customSub==='wheel'){
+    // 以 HSV 的 V 當亮度滑桿
+    const mx=Math.max(r,g,b)/255;
+    const v=Math.round(mx*100);
+    document.getElementById('wheelV').value=v; document.getElementById('wheelVv').value=v;
+    drawWheel();
+  }
+}
+
+// 進入自訂分頁時初始化
+let _custSwBuilt=false;
+function customEnter(){
+  if(!_custSwBuilt){ buildCustSwatches(); _custSwBuilt=true; }
+  updateCustPreview();
+  setCustomSub(customSub);
+}
+
+// 方塊色票：Material Design 調色盤（色系 × 明暗階），橫向捲動
+const MATERIAL=[
+  {n:'Red',s:['#ffebee','#ffcdd2','#ef9a9a','#e57373','#ef5350','#f44336','#e53935','#d32f2f','#c62828','#b71c1c']},
+  {n:'Pink',s:['#fce4ec','#f8bbd0','#f48fb1','#f06292','#ec407a','#e91e63','#d81b60','#c2185b','#ad1457','#880e4f']},
+  {n:'Purple',s:['#f3e5f5','#e1bee7','#ce93d8','#ba68c8','#ab47bc','#9c27b0','#8e24aa','#7b1fa2','#6a1b9a','#4a148c']},
+  {n:'Dp Purple',s:['#ede7f6','#d1c4e9','#b39ddb','#9575cd','#7e57c2','#673ab7','#5e35b1','#512da8','#4527a0','#311b92']},
+  {n:'Indigo',s:['#e8eaf6','#c5cae9','#9fa8da','#7986cb','#5c6bc0','#3f51b5','#3949ab','#303f9f','#283593','#1a237e']},
+  {n:'Blue',s:['#e3f2fd','#bbdefb','#90caf9','#64b5f6','#42a5f5','#2196f3','#1e88e5','#1976d2','#1565c0','#0d47a1']},
+  {n:'Lt Blue',s:['#e1f5fe','#b3e5fc','#81d4fa','#4fc3f7','#29b6f6','#03a9f4','#039be5','#0288d1','#0277bd','#01579b']},
+  {n:'Cyan',s:['#e0f7fa','#b2ebf2','#80deea','#4dd0e1','#26c6da','#00bcd4','#00acc1','#0097a7','#00838f','#006064']},
+  {n:'Teal',s:['#e0f2f1','#b2dfdb','#80cbc4','#4db6ac','#26a69a','#009688','#00897b','#00796b','#00695c','#004d40']},
+  {n:'Green',s:['#e8f5e9','#c8e6c9','#a5d6a7','#81c784','#66bb6a','#4caf50','#43a047','#388e3c','#2e7d32','#1b5e20']},
+  {n:'Lt Green',s:['#f1f8e9','#dcedc8','#c5e1a5','#aed581','#9ccc65','#8bc34a','#7cb342','#689f38','#558b2f','#33691e']},
+  {n:'Lime',s:['#f9fbe7','#f0f4c3','#e6ee9c','#dce775','#d4e157','#cddc39','#c0ca33','#afb42b','#9e9d24','#827717']},
+  {n:'Yellow',s:['#fffde7','#fff9c4','#fff59d','#fff176','#ffee58','#ffeb3b','#fdd835','#fbc02d','#f9a825','#f57f17']},
+  {n:'Amber',s:['#fff8e1','#ffecb3','#ffe082','#ffd54f','#ffca28','#ffc107','#ffb300','#ffa000','#ff8f00','#ff6f00']},
+  {n:'Orange',s:['#fff3e0','#ffe0b2','#ffcc80','#ffb74d','#ffa726','#ff9800','#fb8c00','#f57c00','#ef6c00','#e65100']},
+  {n:'Dp Orange',s:['#fbe9e7','#ffccbc','#ffab91','#ff8a65','#ff7043','#ff5722','#f4511e','#e64a19','#d84315','#bf360c']},
+  {n:'Brown',s:['#efebe9','#d7ccc8','#bcaaa4','#a1887f','#8d6e63','#795548','#6d4c41','#5d4037','#4e342e','#3e2723']},
+  {n:'Grey',s:['#fafafa','#f5f5f5','#eeeeee','#e0e0e0','#bdbdbd','#9e9e9e','#757575','#616161','#424242','#212121']},
+  {n:'Bl Grey',s:['#eceff1','#cfd8dc','#b0bec5','#90a4ae','#78909c','#607d8b','#546e7a','#455a64','#37474f','#263238']}
+];
+function buildCustSwatches(){
+  const grid=document.getElementById('custSwGrid');
+  grid.innerHTML='';
+  MATERIAL.forEach(series=>{
+    const col=document.createElement('div');
+    col.className='mat-col';
+    const name=document.createElement('div');
+    name.className='mat-col-name'; name.textContent=series.n; name.title=series.n;
+    col.appendChild(name);
+    series.s.forEach((hex,i)=>{
+      const d=document.createElement('div');
+      d.className='cust-sw'; d.style.background=hex;
+      d.title=series.n+' '+((i+1)*100-(i===0?50:0))+'　'+hex;
+      d.onclick=()=>writeTargetHex(hex);
+      col.appendChild(d);
+    });
+    grid.appendChild(col);
+  });
+}
+
+// HSL 滑桿
+function onHslInput(){
+  const h=+document.getElementById('hslH').value;
+  const s=+document.getElementById('hslS').value;
+  const l=+document.getElementById('hslL').value;
+  document.getElementById('hslHv').value=h;
+  document.getElementById('hslSv').value=s;
+  document.getElementById('hslLv').value=l;
+  const {r,g,b}=hsl2rgb(h,s,l);
+  writeTargetHex(rgb2hex(r,g,b));
+}
+function hslNumSync(){
+  document.getElementById('hslH').value=Math.min(360,Math.max(0,+document.getElementById('hslHv').value||0));
+  document.getElementById('hslS').value=Math.min(100,Math.max(0,+document.getElementById('hslSv').value||0));
+  document.getElementById('hslL').value=Math.min(100,Math.max(0,+document.getElementById('hslLv').value||0));
+  onHslInput();
+}
+
+// 色輪（HSV 圓盤 + 亮度滑桿）
+function drawWheel(){
+  const cvs=document.getElementById('custWheelCanvas');
+  if(!cvs) return;
+  const ctx=cvs.getContext('2d');
+  const W=cvs.width,H=cvs.height,R=W/2,cx=R,cy=R;
+  const v=(+document.getElementById('wheelV').value)/100;
+  const img=ctx.createImageData(W,H);
+  const data=img.data;
+  for(let y=0;y<H;y++){
+    for(let x=0;x<W;x++){
+      const dx=x-cx,dy=y-cy,dist=Math.sqrt(dx*dx+dy*dy),i=(y*W+x)*4;
+      if(dist<=R){
+        let ang=Math.atan2(dy,dx)*180/Math.PI; if(ang<0)ang+=360;
+        const sat=Math.min(dist/R,1);
+        const {r,g,b}=hsv2rgb(ang,sat,v);
+        data[i]=r; data[i+1]=g; data[i+2]=b;
+        data[i+3]= dist>R-1.2 ? Math.max(0,(R-dist)/1.2)*255 : 255; // 邊緣抗鋸齒
+      }else{ data[i+3]=0; }
+    }
+  }
+  ctx.putImageData(img,0,0);
+}
+function wheelPick(clientX,clientY){
+  const cvs=document.getElementById('custWheelCanvas');
+  const rect=cvs.getBoundingClientRect();
+  const R=cvs.width/2;
+  const x=(clientX-rect.left)*(cvs.width/rect.width)-R;
+  const y=(clientY-rect.top)*(cvs.height/rect.height)-R;
+  let dist=Math.sqrt(x*x+y*y); if(dist>R)dist=R;
+  let ang=Math.atan2(y,x)*180/Math.PI; if(ang<0)ang+=360;
+  const sat=dist/R, v=(+document.getElementById('wheelV').value)/100;
+  const {r,g,b}=hsv2rgb(ang,sat,v);
+  writeTargetHex(rgb2hex(r,g,b));
+}
+function onWheelValInput(){
+  document.getElementById('wheelVv').value=document.getElementById('wheelV').value;
+  // 只調亮度：以目前色標的 H/S 重算（保留色相飽和，改 V）
+  const {r,g,b}=h2rgb(curTargetHex());
+  // rgb → hsv 取 h,s
+  const mx=Math.max(r,g,b)/255,mn=Math.min(r,g,b)/255,d=mx-mn;
+  let h=0; if(d!==0){const rr=r/255,gg=g/255,bb=b/255;
+    if(mx===rr)h=((gg-bb)/d)%6; else if(mx===gg)h=(bb-rr)/d+2; else h=(rr-gg)/d+4;
+    h*=60; if(h<0)h+=360;}
+  const s=mx===0?0:d/mx;
+  const v=(+document.getElementById('wheelV').value)/100;
+  const o=hsv2rgb(h,s,v);
+  writeTargetHex(rgb2hex(o.r,o.g,o.b));
+}
 function h2rgb(hex){return{r:parseInt(hex.slice(1,3),16),g:parseInt(hex.slice(3,5),16),b:parseInt(hex.slice(5,7),16)};}
 function getStops(alpha){
   if(colorMode==='gradient'){const s=curGrad.stops;const {r:r0,g:g0,b:b0}=h2rgb(s[0]),{r:r1,g:g1,b:b1}=h2rgb(s[1]),{r:r2,g:g2,b:b2}=h2rgb(s[2]);return `<stop offset="0%" stop-color="rgb(${r0},${g0},${b0})" stop-opacity="${alpha}"/><stop offset="40%" stop-color="rgb(${r1},${g1},${b1})" stop-opacity="${alpha}"/><stop offset="100%" stop-color="rgb(${r2},${g2},${b2})" stop-opacity="${Math.min(alpha+0.12,1)}"/>`;}
@@ -1254,6 +1749,7 @@ function render(){
     block.appendChild(col);
   });
   applyGaps(); applyOffsets(); fitToCanvas();
+  persist();
 }
 
 function makeChar(ch,sz,alpha,depth){
@@ -1297,13 +1793,27 @@ function makeChar(ch,sz,alpha,depth){
   return div;
 }
 
+// 依目前 currentBg 套用預覽區背景（實色擋星光、透明顯示星空）
+function applyCanvasBg(){
+  const wrap=document.getElementById('canvasWrap');
+  const canvas=document.getElementById('canvas');
+  canvas.style.background='transparent';
+  if(currentBg==='transparent'){
+    wrap.style.background='transparent';
+    wrap.classList.add('bg-see-through');
+  }else{
+    wrap.style.background=currentBg;
+    wrap.classList.remove('bg-see-through');
+  }
+}
 function setBg(color,btn){
   currentBg=color;
   document.querySelectorAll('.bg-btn').forEach(b=>b.classList.remove('on'));
-  btn.classList.add('on');
-  if(!mockupDataUrl){
-    document.getElementById('canvas').style.background=color==='transparent'?'transparent':color;
+  if(btn) btn.classList.add('on');
+  if(!mockupDataUrl && !tshirtActive){
+    applyCanvasBg();
   }
+  persist();
 }
 
 
@@ -1326,11 +1836,194 @@ function toggleFreeze() {
     btn.style.background = '';
   }
 }
+// ── Persistence (localStorage) ────────────────────────
+const STORE_KEY = 'jellytype_state_v1';
+let _persistTimer = null;
+function persist(){
+  clearTimeout(_persistTimer);
+  _persistTimer = setTimeout(_persistNow, 300);
+}
+function _persistNow(){
+  try{
+    const state = {
+      v: 1,
+      lines, offsets,
+      fontKey: curFontKey,
+      sz: +document.getElementById('szSlider').value,
+      alpha: +document.getElementById('alphaSlider').value,
+      lg: +document.getElementById('letterGap').value,
+      cg: +document.getElementById('colGap').value,
+      depth: +document.getElementById('depthSlider').value,
+      bg: currentBg,
+      dir: textDirection,
+      posX, posY, step,
+      colorMode,
+      palIdx: presets.indexOf(curPal),
+      gradIdx: gradients.indexOf(curGrad),
+      solid: document.getElementById('solidColor').value,
+      cTop: document.getElementById('customTop').value,
+      cMid: document.getElementById('customMid').value,
+      cBot: document.getElementById('customBot').value
+    };
+    localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  }catch(e){ /* 無痕模式或被禁用，靜默略過 */ }
+}
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(!raw) return false;
+    const s = JSON.parse(raw);
+    if(!s || s.v !== 1) return false;
+
+    if(Array.isArray(s.lines) && s.lines.length){ lines = s.lines.slice(0,6); }
+    if(Array.isArray(s.offsets)){ offsets = s.offsets.slice(0, lines.length); }
+    while(offsets.length < lines.length) offsets.push(0);
+
+    if(typeof s.fontKey === 'string') curFontKey = s.fontKey;
+
+    const setVal = (sliderId, numId, val, min, max)=>{
+      if(val==null) return;
+      const v = Math.min(Math.max(val, min), max);
+      const sl = document.getElementById(sliderId); if(sl) sl.value = v;
+      const nm = document.getElementById(numId); if(nm) nm.value = v;
+    };
+    setVal('szSlider','szVal', s.sz, 4, 35);
+    setVal('alphaSlider','alphaVal', s.alpha, 40, 95);
+    setVal('letterGap','lgVal', s.lg, -200, 100);
+    setVal('colGap','cgVal', s.cg, -200, 160);
+    setVal('depthSlider','depthVal', s.depth, 2, 14);
+
+    if(typeof s.bg === 'string') currentBg = s.bg;
+    if(s.dir === 'h' || s.dir === 'v') textDirection = s.dir;
+    if(typeof s.posX === 'number') posX = s.posX;
+    if(typeof s.posY === 'number') posY = s.posY;
+    if(typeof s.step === 'number') step = s.step;
+
+    if(typeof s.colorMode === 'string') colorMode = s.colorMode;
+    if(typeof s.palIdx === 'number' && presets[s.palIdx]) curPal = presets[s.palIdx];
+    if(typeof s.gradIdx === 'number' && gradients[s.gradIdx]) curGrad = gradients[s.gradIdx];
+    if(s.solid) document.getElementById('solidColor').value = s.solid;
+    if(s.cTop) document.getElementById('customTop').value = s.cTop;
+    if(s.cMid) document.getElementById('customMid').value = s.cMid;
+    if(s.cBot) document.getElementById('customBot').value = s.cBot;
+    return true;
+  }catch(e){ return false; }
+}
+function clearSaved(){
+  try{ localStorage.removeItem(STORE_KEY); }catch(e){}
+  location.reload();
+}
+function confirmReset(){
+  if(confirm('要清除所有已記住的設定、回到一開始的預設嗎？\n（文字、顏色、字型、位置都會還原）')){
+    clearSaved();
+  }
+}
+// 把還原後的狀態反映到所有按鈕/分頁的 on 樣式
+function syncUIFromState(){
+  // 字型
+  document.querySelectorAll('.font-btn').forEach(b=>b.classList.remove('on'));
+  const fb = document.getElementById('fb-'+curFontKey);
+  if(fb) fb.classList.add('on');
+  const fontMap = {
+    cubic11:"'Cubic11',sans-serif", mantou:"'MantouSans',sans-serif",
+    maokenmosha:"'MaoKenMoSha',sans-serif", honglei:"'HongLeiBanShu',cursive",
+    zerogothic:"'ZeroGothic',sans-serif", fancyhand:"'FancyHandwriting',cursive",
+    qingsong1:"'QingSong1',cursive", qingsong2:"'QingSong2',cursive",
+    qingsong3:"'QingSong3',cursive", qingsong4:"'QingSong4',cursive",
+    qingsong5:"'QingSong5',cursive", yusiyuan:"'YuSiyuan',serif",
+    honglei2:"'HongLei2',cursive", yunyou:"'YunYou',cursive",
+    delamaru:"'DelaMaru',sans-serif", changban:"'ChangBan',serif",
+    chipoxiang:"'CHIPoxianG',sans-serif", shanhu:"'ShanHu',sans-serif",
+    xiangcui:"'XiangCuiLingDuHei',sans-serif"
+  };
+  curFont = fontMap[curFontKey] || fontMap.cubic11;
+
+  // 排版方向
+  document.getElementById('dirV').classList.toggle('on', textDirection==='v');
+  document.getElementById('dirH').classList.toggle('on', textDirection==='h');
+  const tb=document.getElementById('text-block');
+  if(textDirection==='h') tb.classList.add('horizontal'); else tb.classList.remove('horizontal');
+
+  // 步進
+  document.querySelectorAll('.step-btn').forEach(b=>{
+    if(b.textContent.trim()===step+'px') b.classList.add('on');
+    else if(/px$/.test(b.textContent.trim())) b.classList.remove('on');
+  });
+
+  // 背景
+  const bgMap={'#16100b':'暖黑','#000':'黑','#fff':'白','#f0ede8':'米白','transparent':'透明'};
+  document.querySelectorAll('.bg-btn').forEach(b=>{
+    b.classList.toggle('on', b.textContent.trim()===bgMap[currentBg]);
+  });
+
+  // 顏色分頁
+  const tabMap={preset:0, solid:1, custom:2, gradient:3};
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('on', i===tabMap[colorMode]));
+  document.getElementById('tab-preset').style.display = colorMode==='preset'?'':'none';
+  document.getElementById('tab-solid').style.display = colorMode==='solid'?'':'none';
+  document.getElementById('tab-custom').style.display = colorMode==='custom'?'':'none';
+  document.getElementById('tab-gradient').style.display = colorMode==='gradient'?'':'none';
+
+  // 預設色 / 漸層 選中態
+  const pi=presets.indexOf(curPal);
+  document.querySelectorAll('.swatch').forEach((s,i)=>s.classList.toggle('on', i===pi));
+  const gi=gradients.indexOf(curGrad);
+  document.querySelectorAll('.grad-btn').forEach((b,i)=>b.classList.toggle('on', i===gi));
+
+  // 畫布背景（無底圖時才套）
+  if(!mockupDataUrl && !tshirtActive){
+    applyCanvasBg();
+  }
+}
+
+// ── Starfield：生成會獨立閃爍的星星 ──
+function buildStars(){
+  const layer=document.getElementById('starfield');
+  if(!layer) return;
+  layer.innerHTML='';
+  const count=90;
+  const frag=document.createDocumentFragment();
+  for(let i=0;i<count;i++){
+    const s=document.createElement('div');
+    s.className='star'+(Math.random()<0.18?' amber':''); // 約 18% 橘色星
+    const size=(Math.random()*1.6+0.8).toFixed(2);        // 0.8~2.4px
+    s.style.width=size+'px';
+    s.style.height=size+'px';
+    s.style.left=(Math.random()*100).toFixed(2)+'%';
+    s.style.top=(Math.random()*100).toFixed(2)+'%';
+    s.style.setProperty('--dur',(Math.random()*3+1.8).toFixed(2)+'s');   // 1.8~4.8s 各自不同
+    s.style.setProperty('--delay',(-Math.random()*5).toFixed(2)+'s');    // 負延遲：一開始就錯開相位
+    s.style.setProperty('--peak',(Math.random()*0.55+0.4).toFixed(2));   // 最亮 0.4~0.95
+    frag.appendChild(s);
+  }
+  layer.appendChild(frag);
+}
+buildStars();
+
 // ── Init ──────────────────────────────────────────────
+const _restored = loadState();
+syncUIFromState();
 rebuildInputs();
 rebuildOffsets();
 document.fonts.ready.then(render);
 render();
+
+// 色輪指標事件（點擊 + 拖曳，含觸控）
+(function(){
+  const cvs=document.getElementById('custWheelCanvas');
+  if(!cvs) return;
+  let dragging=false;
+  const start=e=>{dragging=true; cvs.setPointerCapture&&cvs.setPointerCapture(e.pointerId); wheelPick(e.clientX,e.clientY); e.preventDefault();};
+  const move=e=>{ if(dragging){ wheelPick(e.clientX,e.clientY); e.preventDefault(); } };
+  const end=()=>{dragging=false;};
+  cvs.addEventListener('pointerdown',start);
+  cvs.addEventListener('pointermove',move);
+  cvs.addEventListener('pointerup',end);
+  cvs.addEventListener('pointercancel',end);
+})();
+
+// 若還原時就是自訂模式，初始化自訂介面
+if(colorMode==='custom') customEnter();
 
 // 視窗大小改變時重算自動縮放
 let resizeTimer;
