@@ -129,6 +129,11 @@
   src: url('https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/GlitchHei.ttf') format('truetype');
   font-display: block;
 }
+@font-face {
+  font-family: 'GlitchSong';
+  src: url('https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/GlitchSong-sub.woff') format('woff');
+  font-display: block;
+}
 
 /* ── Plus One Theme：暖黑底 × 橘色重點 × 米白文字 ── */
 :root {
@@ -858,6 +863,10 @@ input[type=color] {
           <span class="fp" style="font-family:'GlitchHei',sans-serif;">永</span>
           <span class="fn">故障黑體</span>
         </button>
+        <button class="font-btn" id="fb-glitchsong" onclick="setFont('glitchsong',this)">
+          <span class="fp" style="font-family:'GlitchSong',serif;">永</span>
+          <span class="fn">貓啃故障體</span>
+        </button>
       </div>
       <div style="font-size:10px;color:rgba(255,255,255,.28);line-height:1.55;margin-top:8px;">
         字體檔請放在 GitHub 的 <code style="color:rgba(255,125,32,.85)">fonts/</code> 資料夾，檔名需與下方說明一致。
@@ -1056,7 +1065,8 @@ function setFont(key, btn) {
     goldscript: "'GoldScript',serif",
     tiejili: "'TieJiLi',sans-serif",
     fentiao: "'FenTiao',sans-serif",
-    glitchhei: "'GlitchHei',sans-serif"
+    glitchhei: "'GlitchHei',sans-serif",
+    glitchsong: "'GlitchSong',serif"
   };
   curFont = fontMap[key] || fontMap.cubic11;
   curFontKey = fontMap[key] ? key : 'cubic11';
@@ -1205,6 +1215,7 @@ const EXTERNAL_FONT_FILES = [
   {family:'TieJiLi', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/TieJiLi.ttf', format:'truetype', mime:'font/truetype'},
   {family:'FenTiao', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/FenTiao-sub.woff', format:'woff', mime:'font/woff'},
   {family:'GlitchHei', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/GlitchHei.ttf', format:'truetype', mime:'font/truetype'},
+  {family:'GlitchSong', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/GlitchSong-sub.woff', format:'woff', mime:'font/woff'},
 ];
 const externalFontCache = {};
 function arrayBufferToBase64(buffer) {
@@ -1972,7 +1983,8 @@ function syncUIFromState(){
     goldscript:"'GoldScript',serif",
     tiejili:"'TieJiLi',sans-serif",
     fentiao:"'FenTiao',sans-serif",
-    glitchhei:"'GlitchHei',sans-serif"
+    glitchhei:"'GlitchHei',sans-serif",
+    glitchsong:"'GlitchSong',serif"
   };
   curFont = fontMap[curFontKey] || fontMap.cubic11;
 
