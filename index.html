@@ -100,11 +100,6 @@
   font-display: block;
 }
 @font-face {
-  font-family: 'ShanHu';
-  src: url('https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/ShanHu.ttf') format('truetype');
-  font-display: block;
-}
-@font-face {
   font-family: 'XiangCuiLingDuHei';
   src: url('https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/XiangCuiLingDuHei.ttf') format('truetype');
   font-display: block;
@@ -814,10 +809,6 @@ input[type=color] {
           <span class="fp" style="font-family:'CHIPoxianG',sans-serif;">永</span>
           <span class="fn">CHI 破線G</span>
         </button>
-        <button class="font-btn" id="fb-shanhu" onclick="setFont('shanhu',this)">
-          <span class="fp" style="font-family:'ShanHu',sans-serif;">永</span>
-          <span class="fn">珊瑚體</span>
-        </button>
         <button class="font-btn" id="fb-xiangcui" onclick="setFont('xiangcui',this)">
           <span class="fp" style="font-family:'XiangCuiLingDuHei',sans-serif;">永</span>
           <span class="fn">零度黑</span>
@@ -1015,7 +1006,6 @@ function setFont(key, btn) {
     delamaru: "'DelaMaru',sans-serif",
     changban: "'ChangBan',serif",
     chipoxiang: "'CHIPoxianG',sans-serif",
-    shanhu: "'ShanHu',sans-serif",
     xiangcui: "'XiangCuiLingDuHei',sans-serif"
   };
   curFont = fontMap[key] || fontMap.cubic11;
@@ -1159,7 +1149,6 @@ const EXTERNAL_FONT_FILES = [
   {family:'DelaMaru', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/DelaMaru.ttf', format:'truetype', mime:'font/truetype'},
   {family:'ChangBan', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/ChangBan.ttf', format:'truetype', mime:'font/truetype'},
   {family:'CHIPoxianG', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/CHI-PoxianG-sub.ttf', format:'truetype', mime:'font/truetype'},
-  {family:'ShanHu', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/ShanHu.ttf', format:'truetype', mime:'font/truetype'},
   {family:'XiangCuiLingDuHei', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/XiangCuiLingDuHei.ttf', format:'truetype', mime:'font/truetype'},
 ];
 const externalFontCache = {};
@@ -1922,7 +1911,6 @@ function syncUIFromState(){
     qingsong5:"'QingSong5',cursive", yusiyuan:"'YuSiyuan',serif",
     honglei2:"'HongLei2',cursive", yunyou:"'YunYou',cursive",
     delamaru:"'DelaMaru',sans-serif", changban:"'ChangBan',serif",
-    chipoxiang:"'CHIPoxianG',sans-serif", shanhu:"'ShanHu',sans-serif",
     xiangcui:"'XiangCuiLingDuHei',sans-serif"
   };
   curFont = fontMap[curFontKey] || fontMap.cubic11;
