@@ -104,6 +104,31 @@
   src: url('https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/XiangCuiLingDuHei.ttf') format('truetype');
   font-display: block;
 }
+@font-face {
+  font-family: 'DotMatrix';
+  src: url('https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/DotMatrix.ttf') format('truetype');
+  font-display: block;
+}
+@font-face {
+  font-family: 'GoldScript';
+  src: url('https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/GoldScript.ttf') format('truetype');
+  font-display: block;
+}
+@font-face {
+  font-family: 'TieJiLi';
+  src: url('https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/TieJiLi.ttf') format('truetype');
+  font-display: block;
+}
+@font-face {
+  font-family: 'FenTiao';
+  src: url('https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/FenTiao.ttf') format('truetype');
+  font-display: block;
+}
+@font-face {
+  font-family: 'GlitchHei';
+  src: url('https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/GlitchHei.ttf') format('truetype');
+  font-display: block;
+}
 
 /* ── Plus One Theme：暖黑底 × 橘色重點 × 米白文字 ── */
 :root {
@@ -813,6 +838,26 @@ input[type=color] {
           <span class="fp" style="font-family:'XiangCuiLingDuHei',sans-serif;">永</span>
           <span class="fn">零度黑</span>
         </button>
+        <button class="font-btn" id="fb-dotmatrix" onclick="setFont('dotmatrix',this)">
+          <span class="fp" style="font-family:'DotMatrix',monospace;">永</span>
+          <span class="fn">點陣體</span>
+        </button>
+        <button class="font-btn" id="fb-goldscript" onclick="setFont('goldscript',this)">
+          <span class="fp" style="font-family:'GoldScript',serif;">永</span>
+          <span class="fn">金字體</span>
+        </button>
+        <button class="font-btn" id="fb-tiejili" onclick="setFont('tiejili',this)">
+          <span class="fp" style="font-family:'TieJiLi',sans-serif;">永</span>
+          <span class="fn">鐵疾藜體</span>
+        </button>
+        <button class="font-btn" id="fb-fentiao" onclick="setFont('fentiao',this)">
+          <span class="fp" style="font-family:'FenTiao',sans-serif;">永</span>
+          <span class="fn">粉條體</span>
+        </button>
+        <button class="font-btn" id="fb-glitchhei" onclick="setFont('glitchhei',this)">
+          <span class="fp" style="font-family:'GlitchHei',sans-serif;">永</span>
+          <span class="fn">故障黑體</span>
+        </button>
       </div>
       <div style="font-size:10px;color:rgba(255,255,255,.28);line-height:1.55;margin-top:8px;">
         字體檔請放在 GitHub 的 <code style="color:rgba(255,125,32,.85)">fonts/</code> 資料夾，檔名需與下方說明一致。
@@ -1006,7 +1051,12 @@ function setFont(key, btn) {
     delamaru: "'DelaMaru',sans-serif",
     changban: "'ChangBan',serif",
     chipoxiang: "'CHIPoxianG',sans-serif",
-    xiangcui: "'XiangCuiLingDuHei',sans-serif"
+    xiangcui: "'XiangCuiLingDuHei',sans-serif",
+    dotmatrix: "'DotMatrix',monospace",
+    goldscript: "'GoldScript',serif",
+    tiejili: "'TieJiLi',sans-serif",
+    fentiao: "'FenTiao',sans-serif",
+    glitchhei: "'GlitchHei',sans-serif"
   };
   curFont = fontMap[key] || fontMap.cubic11;
   curFontKey = fontMap[key] ? key : 'cubic11';
@@ -1150,6 +1200,11 @@ const EXTERNAL_FONT_FILES = [
   {family:'ChangBan', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/ChangBan.ttf', format:'truetype', mime:'font/truetype'},
   {family:'CHIPoxianG', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/CHI-PoxianG-sub.ttf', format:'truetype', mime:'font/truetype'},
   {family:'XiangCuiLingDuHei', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/XiangCuiLingDuHei.ttf', format:'truetype', mime:'font/truetype'},
+  {family:'DotMatrix', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/DotMatrix.ttf', format:'truetype', mime:'font/truetype'},
+  {family:'GoldScript', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/GoldScript.ttf', format:'truetype', mime:'font/truetype'},
+  {family:'TieJiLi', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/TieJiLi.ttf', format:'truetype', mime:'font/truetype'},
+  {family:'FenTiao', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/FenTiao.ttf', format:'truetype', mime:'font/truetype'},
+  {family:'GlitchHei', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/GlitchHei.ttf', format:'truetype', mime:'font/truetype'},
 ];
 const externalFontCache = {};
 function arrayBufferToBase64(buffer) {
@@ -1911,7 +1966,13 @@ function syncUIFromState(){
     qingsong5:"'QingSong5',cursive", yusiyuan:"'YuSiyuan',serif",
     honglei2:"'HongLei2',cursive", yunyou:"'YunYou',cursive",
     delamaru:"'DelaMaru',sans-serif", changban:"'ChangBan',serif",
-    xiangcui:"'XiangCuiLingDuHei',sans-serif"
+    chipoxiang:"'CHIPoxianG',sans-serif",
+    xiangcui:"'XiangCuiLingDuHei',sans-serif",
+    dotmatrix:"'DotMatrix',monospace",
+    goldscript:"'GoldScript',serif",
+    tiejili:"'TieJiLi',sans-serif",
+    fentiao:"'FenTiao',sans-serif",
+    glitchhei:"'GlitchHei',sans-serif"
   };
   curFont = fontMap[curFontKey] || fontMap.cubic11;
 
