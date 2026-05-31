@@ -1711,7 +1711,7 @@ function getStops(alpha){
 }
 function getGlow(){if(colorMode==='gradient')return curGrad.glow;if(colorMode==='solid'){const {r,g,b}=h2rgb(document.getElementById('solidColor').value);return `rgba(${r},${g},${b},0.6)`;}if(colorMode==='custom'){const {r,g,b}=h2rgb(document.getElementById('customMid').value);return `rgba(${r},${g},${b},0.6)`;}return curPal.glow;}
 function getInnerColor(){if(colorMode==='gradient'){const {r,g,b}=h2rgb(curGrad.stops[1]);return `rgba(${r},${g},${b},0.18)`;}if(colorMode==='solid'){const {r,g,b}=h2rgb(document.getElementById('solidColor').value);return `rgba(${r},${g},${b},0.18)`;}if(colorMode==='custom'){const {r,g,b}=h2rgb(document.getElementById('customMid').value);return `rgba(${r},${g},${b},0.18)`;}const {r,g,b}=h2rgb(curPal.base);return `rgba(${r},${g},${b},0.18)`;}
-function getDepthColor(i,depth,alpha){const frac=i/depth,a=(alpha*(0.22+0.5*(1-frac))).toFixed(2);let dc=colorMode==='gradient'?curGrad.stops[0]:colorMode==='solid'?document.getElementById('solidColor').value:colorMode==='custom'?document.getElementById('customBot').value:curPal.dark;const {r,g,b}=h2rgb(dc);return `rgba(${Math.round(r*(0.45+0.55*frac))},${Math.round(g*(0.45+0.55*frac))},${Math.round(b*(0.45+0.55*frac))},${a})`;}
+function getDepthColor(i,depth,alpha){const frac=i/depth;let dc=colorMode==='gradient'?curGrad.stops[0]:colorMode==='solid'?document.getElementById('solidColor').value:colorMode==='custom'?document.getElementById('customBot').value:curPal.dark;const {r,g,b}=h2rgb(dc);const k=0.42+0.5*frac;return `rgba(${Math.round(r*k)},${Math.round(g*k)},${Math.round(b*k)},1)`;}
 
 let textDirection = 'v'; // 'v'直書 'h'橫書
 function setDirection(dir, btn){
