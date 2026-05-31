@@ -125,13 +125,8 @@
   font-display: block;
 }
 @font-face {
-  font-family: 'GlitchHei';
-  src: url('https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/GlitchHei.ttf') format('truetype');
-  font-display: block;
-}
-@font-face {
-  font-family: 'GlitchSong';
-  src: url('https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/GlitchSong-sub.woff') format('woff');
+  font-family: 'JingGlitch';
+  src: url('https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/JingGlitch.ttf') format('truetype');
   font-display: block;
 }
 
@@ -859,13 +854,9 @@ input[type=color] {
           <span class="fp" style="font-family:'FenTiao',sans-serif;">永</span>
           <span class="fn">粉條體</span>
         </button>
-        <button class="font-btn" id="fb-glitchhei" onclick="setFont('glitchhei',this)">
-          <span class="fp" style="font-family:'GlitchHei',sans-serif;">永</span>
-          <span class="fn">故障黑體</span>
-        </button>
-        <button class="font-btn" id="fb-glitchsong" onclick="setFont('glitchsong',this)">
-          <span class="fp" style="font-family:'GlitchSong',serif;">永</span>
-          <span class="fn">貓啃故障體</span>
+        <button class="font-btn" id="fb-jingglitch" onclick="setFont('jingglitch',this)">
+          <span class="fp" style="font-family:'JingGlitch',serif;">永</span>
+          <span class="fn">瀞之故障體</span>
         </button>
       </div>
       <div style="font-size:10px;color:rgba(255,255,255,.28);line-height:1.55;margin-top:8px;">
@@ -1065,8 +1056,7 @@ function setFont(key, btn) {
     goldscript: "'GoldScript',serif",
     tiejili: "'TieJiLi',sans-serif",
     fentiao: "'FenTiao',sans-serif",
-    glitchhei: "'GlitchHei',sans-serif",
-    glitchsong: "'GlitchSong',serif"
+    jingglitch: "'JingGlitch',serif"
   };
   curFont = fontMap[key] || fontMap.cubic11;
   curFontKey = fontMap[key] ? key : 'cubic11';
@@ -1214,8 +1204,7 @@ const EXTERNAL_FONT_FILES = [
   {family:'GoldScript', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/GoldScript-sub.woff', format:'woff', mime:'font/woff'},
   {family:'TieJiLi', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/TieJiLi.ttf', format:'truetype', mime:'font/truetype'},
   {family:'FenTiao', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/FenTiao-sub.woff', format:'woff', mime:'font/woff'},
-  {family:'GlitchHei', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/GlitchHei.ttf', format:'truetype', mime:'font/truetype'},
-  {family:'GlitchSong', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/GlitchSong-sub.woff', format:'woff', mime:'font/woff'},
+  {family:'JingGlitch', url:'https://cdn.jsdelivr.net/gh/j1770707/jellytext@main/fonts/JingGlitch.ttf', format:'truetype', mime:'font/truetype'},
 ];
 const externalFontCache = {};
 function arrayBufferToBase64(buffer) {
@@ -1983,8 +1972,7 @@ function syncUIFromState(){
     goldscript:"'GoldScript',serif",
     tiejili:"'TieJiLi',sans-serif",
     fentiao:"'FenTiao',sans-serif",
-    glitchhei:"'GlitchHei',sans-serif",
-    glitchsong:"'GlitchSong',serif"
+    jingglitch:"'JingGlitch',serif"
   };
   curFont = fontMap[curFontKey] || fontMap.cubic11;
 
