@@ -315,6 +315,24 @@ body::after {
   display: flex; align-items: center; justify-content: center;
   padding: 30px;
 }
+/* v36：要讓預覽區「正中央是線、不是格子」。把每格的線畫在格子正中央
+   （前半格透明 → 1px 線 → 後半格透明），再用 background-position:center，
+   這樣中心線、以及左右對稱的每一條線都會精準落在該落的位置。 */
+#canvas.show-grid::before{
+  content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
+  /* v46：線畫在每格起點(offset 0)，再以 background-position:center 對齊，
+     使淡格線出現在 中心 ± n×gridPx，與 snapPos() 的吸附格線完全同相位，
+     亮橘吸附線才會精準落在淡格線上；中心本身即為一條線。 */
+  background-image:
+    repeating-linear-gradient(to right,
+      rgba(255,255,255,.022) 0 1px,
+      transparent 1px var(--gridPx,40px)),
+    repeating-linear-gradient(to bottom,
+      rgba(255,255,255,.022) 0 1px,
+      transparent 1px var(--gridPx,40px));
+  background-position: center center;
+}
+#canvas.has-mockup.show-grid::before{ opacity:.5; }
 #canvas.has-mockup { background: transparent !important; }
 #text-block {
   transform-origin: center center;
@@ -322,18 +340,156 @@ body::after {
   align-items: flex-start; justify-content: center;
   flex-wrap: wrap; gap: 8px;
 }
+/* 拖曳：被拖動時暫停浮動動畫、顯示移動游標 */
+#canvas.dragging .col,
+#canvas.dragging .jelly-char { animation: none !important; }
+#text-block.draggable { cursor: grab; touch-action: none; }
+#text-block.draggable:active { cursor: grabbing; }
+#canvas.dragging #text-block { cursor: grabbing; }
+
+/* 對齊參考線容器（疊在預覽區最上層，不吃事件） */
+#guideLayer {
+  position: absolute; inset: 0; z-index: 5;
+  pointer-events: none; overflow: hidden;
+}
+.guide-line {
+  position: absolute; opacity: 0;
+  transition: opacity .12s ease;
+  background: #4dd0e1;
+  box-shadow: 0 0 6px rgba(77,208,225,.9), 0 0 2px rgba(255,255,255,.8);
+}
+.guide-line.v { width: 1.5px; top: 0; bottom: 0; transform: translateX(-50%); }
+.guide-line.h { height: 1.5px; left: 0; right: 0; transform: translateY(-50%); }
+.guide-line.show { opacity: .95; }
+.guide-line.center { background: #ff7d20; box-shadow: 0 0 8px rgba(255,125,32,.95), 0 0 2px rgba(255,255,255,.85); }
+/* v35：對齊時的十字高亮線更細、光暈更收斂 */
+.guide-line.grid-snap.v { width: 1px; }
+.guide-line.grid-snap.h { height: 1px; }
+.guide-line.grid-snap.center { background:#ff7d20; box-shadow: 0 0 2px rgba(255,125,32,.6); }
+
+/* 點預覽區直接輸入的浮動輸入框 */
+/* ── 全螢幕編輯模式 overlay（IG / CapCut 風格）─────────── */
+#editOverlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: auto;
+  height: 100vh; height: 100dvh; z-index: 999;
+  display: none; flex-direction: column;
+  background: #0a0b10;
+}
+#editOverlay.show { display: flex; }
+/* 頂列：完成鈕 */
+#editTop {
+  flex: none; display: flex; justify-content: flex-end; align-items: center;
+  padding: max(14px, env(safe-area-inset-top)) 22px 8px;
+}
+#editDone {
+  background: none; border: none; color: #fff;
+  font-size: 18px; font-weight: 700; letter-spacing: .12em; cursor: pointer;
+  padding: 6px 4px;
+}
+/* 中段：即時預覽 ＋ 可收合的左側大小滑桿 */
+#editStage {
+  flex: 1 1 auto; min-height: 0; position: relative;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; touch-action: none;
+}
+#editPreview {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  padding: 10px; box-sizing: border-box;
+}
+#editPreview #canvasWrap {
+  width: 100% !important; height: 100% !important;
+  max-height: none !important; min-height: 0 !important;
+  border-radius: 14px; touch-action: none;
+}
+/* 雙指縮放提示 */
+#editPinchHint {
+  position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+  font-size: 12px; color: rgba(255,255,255,.4);
+  background: rgba(0,0,0,.35); padding: 5px 12px; border-radius: 20px;
+  pointer-events: none; opacity: 0; transition: opacity .3s; z-index: 4;
+}
+#editPinchHint.show { opacity: 1; }
+/* ── 底部面板（字型列 + 工具列 + 顏色）：永遠在鍵盤上方 ── */
+#editPanel {
+  flex: none; background: transparent;
+  padding-bottom: max(6px, env(safe-area-inset-bottom));
+}
+#editFontRow {
+  display: flex; gap: 10px; overflow-x: auto;
+  padding: 10px 16px 12px; -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+#editFontRow::-webkit-scrollbar { display: none; }
+.ef-btn {
+  flex: none; padding: 13px 20px; border-radius: 16px;
+  background: rgba(255,255,255,.10); color: rgba(255,255,255,.78);
+  border: none; cursor: pointer;
+  font-size: 18px; white-space: nowrap; transition: all .12s;
+}
+.ef-btn.on { background: #fff; color: #111; font-weight: 800; }
+/* 工具列：深色圓角條 */
+#editToolbar {
+  margin: 0 14px; padding: 8px 14px;
+  background: rgba(28,32,44,.92); border-radius: 18px;
+  display: flex; align-items: center; gap: 10px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.4);
+}
+.et-btn {
+  height: 44px; min-width: 52px; padding: 0 12px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; border: none;
+  cursor: pointer; font-size: 19px; font-weight: 700; color: #fff;
+}
+.et-btn.on { background: rgba(255,255,255,.16); }
+.et-btn.wide { font-size: 14px; font-weight: 600; }
+#editColorDot { width: 28px; height: 28px; border-radius: 50%;
+  background: conic-gradient(from 0deg, #ff3b30, #ff9500, #ffcc00, #34c759, #00c7be, #007aff, #5856d6, #af52de, #ff2d55, #ff3b30);
+  box-shadow: inset 0 0 0 3px rgba(255,255,255,.92); }
+.et-spacer { flex: 1; }
+/* 顏色面板：色相漸層滑桿 + 明度滑桿 */
+#editColorPanel {
+  display: none; padding: 14px 18px 6px; gap: 14px; flex-direction: column;
+}
+#editColorPanel.show { display: flex; }
+.hue-row { display: flex; align-items: center; gap: 12px; }
+.hue-row label { font-size: 12px; color: rgba(255,255,255,.5); width: 30px; flex: none; }
+.grad-slider {
+  -webkit-appearance: none; appearance: none;
+  flex: 1; height: 16px; border-radius: 10px; outline: none; cursor: pointer;
+}
+#editHue { background: linear-gradient(to right, #ff0000,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff,#ff0000); }
+.grad-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: #fff; border: 2px solid rgba(0,0,0,.25);
+  box-shadow: 0 2px 6px rgba(0,0,0,.4); cursor: pointer;
+}
+.grad-slider::-moz-range-thumb {
+  width: 26px; height: 26px; border-radius: 50%; border: 2px solid rgba(0,0,0,.25);
+  background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.4); cursor: pointer;
+}
+#editSwatchRow { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-top: 2px; }
+#editSwatchRow::-webkit-scrollbar { display: none; }
+.ec-sw { flex: none; width: 32px; height: 32px; border-radius: 50%;
+  border: 2px solid transparent; cursor: pointer; }
+.ec-sw.on { border-color: #fff; }
+/* 隱藏的輸入框：負責叫出鍵盤、接收輸入 */
+/* 隱藏的輸入框：負責叫出鍵盤、接收輸入（含注音 IME 組字）
+   給足夠尺寸與 16px 字級，避免 iOS 把它當無效目標而吞掉組字輸入 */
+#editInput {
+  position: absolute; left: 0; bottom: 0;
+  width: 100%; height: 40px;
+  opacity: 0; border: 0; padding: 0; margin: 0;
+  background: transparent; color: transparent; caret-color: transparent;
+  font-size: 16px; resize: none; pointer-events: none;
+  z-index: -1;
+}
 /* 橫書模式 */
 #text-block.horizontal { flex-direction: column; align-items: center; }
 #text-block.horizontal .col { flex-direction: row; align-items: center; }
-.col { display:flex; flex-direction:column; align-items:center; animation:float 4s ease-in-out infinite; }
-@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
-.jelly-char{display:block;animation:jellywobble 3s ease-in-out infinite;cursor:pointer;}
-.jelly-char:nth-child(2){animation-delay:.12s}.jelly-char:nth-child(3){animation-delay:.24s}
-.jelly-char:nth-child(4){animation-delay:.36s}.jelly-char:nth-child(5){animation-delay:.48s}
-.jelly-char:nth-child(6){animation-delay:.60s}.jelly-char:nth-child(7){animation-delay:.72s}
-@keyframes jellywobble{0%,100%{transform:scaleY(1) scaleX(1) rotate(0deg)}25%{transform:scaleY(1.05) scaleX(0.96) rotate(-.5deg)}75%{transform:scaleY(0.96) scaleX(1.04) rotate(.5deg)}}
-.jelly-char:hover{animation:squish .45s cubic-bezier(.36,.07,.19,.97) forwards;}
-@keyframes squish{0%{transform:scale(1)}20%{transform:scaleX(1.2) scaleY(0.75)}50%{transform:scaleX(0.88) scaleY(1.2)}70%{transform:scaleX(1.06) scaleY(0.94)}85%{transform:scaleX(0.97) scaleY(1.04)}100%{transform:scale(1)}}
+.col { display:flex; flex-direction:column; align-items:center; }
+.jelly-char{display:flex;align-items:center;justify-content:center;line-height:1;font-weight:900;cursor:inherit;text-shadow:.055em .055em 0 rgba(0,0,0,.42),.11em .11em 0 rgba(42,24,18,.28),0 -.035em 0 rgba(255,255,255,.32);-webkit-text-stroke:.7px rgba(0,0,0,.22);}
 
 /* ── Position Panel ── */
 .pos-panel {
@@ -709,35 +865,27 @@ input[type=color] {
       <div id="canvas">
         <div id="text-block"></div>
       </div>
+      <!-- 對齊參考線：垂直中、水平中、四等分輔助 -->
+      <div id="guideLayer">
+        <div class="guide-line v center" data-gx="0.5"></div>
+        <div class="guide-line h center" data-gy="0.5"></div>
+        <div class="guide-line v" data-gx="0.25"></div>
+        <div class="guide-line v" data-gx="0.75"></div>
+        <div class="guide-line h" data-gy="0.25"></div>
+        <div class="guide-line h" data-gy="0.75"></div>
+      </div>
     </div>
 
-    <!-- 位置控制 -->
+    <!-- 位置控制（v38：移除步進與方向鍵，保留數據與排版切換；位置改由預覽區拖曳／吸附操作） -->
     <div class="pos-panel">
       <div class="pos-panel-top">
         <span class="pos-title">位置控制</span>
         <span class="pos-readout" id="posReadout">X 0 / Y 0</span>
       </div>
       <div class="step-row">
-        <span class="step-label">步進</span>
-        <button class="step-btn on" onclick="setStep(5,this)">5px</button>
-        <button class="step-btn" onclick="setStep(10,this)">10px</button>
-        <button class="step-btn" onclick="setStep(20,this)">20px</button>
-      </div>
-      <div class="step-row">
         <span class="step-label">排版</span>
         <button class="step-btn on" id="dirV" onclick="setDirection('v',this)">直書</button>
         <button class="step-btn" id="dirH" onclick="setDirection('h',this)">橫書</button>
-      </div>
-      <div class="pos-grid">
-        <div></div>
-        <button class="pos-btn" onclick="move(0,-step)">↑ 上</button>
-        <div></div>
-        <button class="pos-btn" onclick="move(-step,0)">← 左</button>
-        <button class="pos-btn" onclick="resetPos()">重設</button>
-        <button class="pos-btn" onclick="move(step,0)">右 →</button>
-        <div></div>
-        <button class="pos-btn" onclick="move(0,step)">↓ 下</button>
-        <div></div>
       </div>
     </div>
   </div>
@@ -750,7 +898,6 @@ input[type=color] {
       <label>匯出 ＆ Mockup</label>
       <div class="export-row">
       <div class="export-row" style="margin-top:8px;">
-        <button class="exp-btn exp-freeze" id="freezeBtn" onclick="toggleFreeze()">❄️ 凍結畫面</button>
         <button class="exp-btn" onclick="confirmReset()" style="background:rgba(255,138,128,0.12);color:#ff8a80;border:1px solid rgba(255,138,128,0.3);">♻️ 重設全部</button>
       </div>
       <div class="export-row" style="margin-top:8px;">
@@ -758,13 +905,171 @@ input[type=color] {
         <button class="exp-btn exp-hires" onclick="exportPNG(true)">🔬 高解析4K</button>
       </div>
       <div class="export-row" style="margin-top:8px;">
-        <button class="mockup-btn" id="tshirtBtn" onclick="toggleTshirt()">👕 T恤預覽</button>
         <label class="mockup-btn" id="mockupLabel" for="mockupFileInput">🎽 上傳底圖</label>
         <input type="file" id="mockupFileInput" accept="image/*" onchange="loadMockup(this)">
         <button class="rm-mockup" id="rmMockupBtn" onclick="removeMockup()" style="display:none;">✕ 移除</button>
       </div>
       <div class="exp-prog" id="expProg"></div>
     </div>
+
+    <!-- 文字輸入 -->
+    <div class="ctrl">
+      <label>文字輸入（每行最多25字）</label>
+      <div class="text-inputs" id="textInputs"></div>
+      <div class="add-row">
+        <button class="add-btn" onclick="addLine()">＋</button>
+      </div>
+    </div>
+
+    <!-- 字體大小 -->
+    <div class="ctrl">
+      <label>字體大小</label>
+      <div class="rrow">
+        <input type="range" id="szSlider" min="12" max="180" value="48"
+          oninput="this.nextElementSibling.value=this.value;render()">
+        <input class="num-input" id="szVal" type="number" value="48" min="12" max="180"
+          onchange="var v=Math.min(Math.max(parseInt(this.value)||12,12),180);this.value=v;document.getElementById('szSlider').value=v;render()" onclick="this.select()">
+      </div>
+    </div>
+
+    <!-- 透明度 -->
+    <div class="ctrl">
+      <label>透明度</label>
+      <div class="rrow">
+        <input type="range" id="alphaSlider" min="40" max="95" value="78"
+          oninput="this.nextElementSibling.value=this.value;render()">
+        <input class="num-input" id="alphaVal" type="number" value="78" min="40" max="95" style="min-width:58px;"
+          onchange="var v=Math.min(Math.max(parseInt(this.value)||40,40),95);this.value=v;document.getElementById('alphaSlider').value=v;render()" onclick="this.select()">
+      </div>
+    </div>
+
+    <!-- 字距 -->
+    <div class="ctrl">
+      <label>字距（上下）</label>
+      <div class="rrow">
+        <input type="range" id="letterGap" min="-200" max="100" value="4"
+          oninput="this.nextElementSibling.value=this.value;applyGaps()">
+        <input class="num-input" id="lgVal" type="number" value="4" min="-200" max="100"
+          onchange="var v=Math.min(Math.max(parseInt(this.value)||-200,-200),100);this.value=v;document.getElementById('letterGap').value=v;applyGaps()" onclick="this.select()">
+      </div>
+    </div>
+
+    <!-- 行距 -->
+    <div class="ctrl">
+      <label>行距（欄間距）</label>
+      <div class="rrow">
+        <input type="range" id="colGap" min="-200" max="160" value="8"
+          oninput="this.nextElementSibling.value=this.value;applyGaps()">
+        <input class="num-input" id="cgVal" type="number" value="8" min="-200" max="160"
+          onchange="var v=Math.min(Math.max(parseInt(this.value)||-200,-200),160);this.value=v;document.getElementById('colGap').value=v;applyGaps()" onclick="this.select()">
+      </div>
+    </div>
+
+    <!-- 欄位移 -->
+    <div class="ctrl offset-ctrl">
+      <label>各欄上下位移</label>
+      <div id="offsetSliders" style="display:flex;flex-direction:column;gap:8px;margin-top:4px;"></div>
+    </div>
+
+    <!-- 厚度 -->
+    <div class="ctrl">
+      <label>厚度層數</label>
+      <div class="rrow">
+        <input type="range" id="depthSlider" min="2" max="14" value="7"
+          oninput="this.nextElementSibling.value=this.value;render()">
+        <input class="num-input" id="depthVal" type="number" value="7" min="2" max="14"
+          onchange="var v=Math.min(Math.max(parseInt(this.value)||2,2),14);this.value=v;document.getElementById('depthSlider').value=v;render()" onclick="this.select()">
+      </div>
+    </div>
+
+    <!-- 背景 -->
+    <div class="ctrl">
+      <label>背景</label>
+      <div class="bg-row">
+        <button class="bg-btn on" onclick="setBg('#16100b',this)">暖黑</button>
+        <button class="bg-btn" onclick="setBg('#000',this)">黑</button>
+        <button class="bg-btn" onclick="setBg('#fff',this)">白</button>
+        <button class="bg-btn" onclick="setBg('#f0ede8',this)">米白</button>
+        <button class="bg-btn" onclick="setBg('transparent',this)">透明</button>
+      </div>
+    </div>
+
+    <!-- 顏色 -->
+    <div class="ctrl">
+      <label>果凍顏色</label>
+      <div class="tabs">
+        <button class="tab" onclick="switchTab('preset',this)">🎨 預設</button>
+        <button class="tab on" onclick="switchTab('solid',this)">⬛ 純色</button>
+        <button class="tab" onclick="switchTab('custom',this)">🖌️ 自訂</button>
+        <button class="tab" onclick="switchTab('gradient',this)">🌈 漸層</button>
+      </div>
+      <div id="tab-preset" style="display:none"><div class="swatches" id="swatches"></div></div>
+      <div id="tab-solid">
+        <label class="solid-picker-bar" for="solidColor" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);cursor:pointer;">
+          <input type="color" id="solidColor" value="#e8651e" oninput="applySolidColor()" style="width:52px;height:52px;flex:none;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:14px;color:#f2ede3;font-weight:700;">點此選色</div>
+            <div style="font-size:11px;color:rgba(242,237,227,0.45);line-height:1.5;margin-top:2px;">開啟系統調色盤：色票格線 · 光譜 · RGB 滑桿 · 滴管 · 十六進位</div>
+          </div>
+        </label>
+      </div>
+      <div id="tab-custom" style="display:none">
+        <!-- 即時漸層預覽 -->
+        <div class="cust-preview" id="custPreview"></div>
+
+        <!-- 四個色標：點色塊 → 跳出系統完整調色盤（色輪／光譜／色票／蠟筆＝更多選擇）-->
+        <div class="cust-targets">
+          <div class="cust-target on" id="ctgt-top" onclick="setCustomTarget('top')">
+            <input type="color" class="chip-input" id="customTop" value="#ffb74d"
+              oninput="onStopColor('top')">頂部
+          </div>
+          <div class="cust-target" id="ctgt-mid" onclick="setCustomTarget('mid')">
+            <input type="color" class="chip-input" id="customMid" value="#e8651e"
+              oninput="onStopColor('mid')">中段
+          </div>
+          <div class="cust-target" id="ctgt-bot" onclick="setCustomTarget('bot')">
+            <input type="color" class="chip-input" id="customBot" value="#8a2d0a"
+              oninput="onStopColor('bot')">底部
+          </div>
+        </div>
+        <div class="cust-hint" style="margin:-4px 0 10px;">👆 點色塊 = 系統完整調色盤（色輪／光譜／色票／蠟筆）。下面三種是 inline 快速挑色，作用於目前選中的色塊。</div>
+
+        <!-- 三種 inline 調色方式 -->
+        <div class="cust-modes">
+          <div class="cust-mode on" id="cmode-swatch" onclick="setCustomSub('swatch')">🎨 方塊</div>
+          <div class="cust-mode" id="cmode-slider" onclick="setCustomSub('slider')">🎚️ 滑桿</div>
+          <div class="cust-mode" id="cmode-wheel" onclick="setCustomSub('wheel')">🎡 色輪</div>
+        </div>
+
+        <!-- 方塊：Material 色票網格 -->
+        <div id="csub-swatch"><div class="cust-swatch-grid" id="custSwGrid"></div></div>
+
+        <!-- 滑桿：HSL -->
+        <div id="csub-slider" style="display:none">
+          <div class="hsl-row"><label>H</label>
+            <input type="range" class="hsl-hue" id="hslH" min="0" max="360" value="187" oninput="onHslInput()">
+            <input class="num-input" id="hslHv" type="number" min="0" max="360" value="187" onchange="hslNumSync()" onclick="this.select()"></div>
+          <div class="hsl-row"><label>S</label>
+            <input type="range" id="hslS" min="0" max="100" value="62" oninput="onHslInput()">
+            <input class="num-input" id="hslSv" type="number" min="0" max="100" value="62" onchange="hslNumSync()" onclick="this.select()"></div>
+          <div class="hsl-row"><label>L</label>
+            <input type="range" id="hslL" min="0" max="100" value="59" oninput="onHslInput()">
+            <input class="num-input" id="hslLv" type="number" min="0" max="100" value="59" onchange="hslNumSync()" onclick="this.select()"></div>
+        </div>
+
+        <!-- 色輪 -->
+        <div id="csub-wheel" style="display:none">
+          <div class="wheel-wrap">
+            <canvas id="custWheelCanvas" width="180" height="180"></canvas>
+            <div class="wheel-val-row"><label>亮度</label>
+              <input type="range" id="wheelV" min="0" max="100" value="70" oninput="drawWheel();onWheelValInput()">
+              <input class="num-input" id="wheelVv" type="number" min="0" max="100" value="70" onchange="document.getElementById('wheelV').value=this.value;drawWheel();onWheelValInput()" onclick="this.select()"></div>
+          </div>
+        </div>
+      </div>
+      <div id="tab-gradient" style="display:none"><div class="grad-grid" id="gradGrid"></div></div>
+    </div>
+
 
     <!-- 字型 -->
     <div class="ctrl">
@@ -864,169 +1169,43 @@ input[type=color] {
       </div>
     </div>
 
-    <!-- 文字輸入 -->
-    <div class="ctrl">
-      <label>文字輸入（每行最多25字）</label>
-      <div class="text-inputs" id="textInputs"></div>
-      <div class="add-row">
-        <button class="add-btn" onclick="addLine()">＋</button>
-      </div>
-    </div>
-
-    <!-- 字體大小 -->
-    <div class="ctrl">
-      <label>字體大小</label>
-      <div class="rrow">
-        <input type="range" id="szSlider" min="4" max="100" value="32"
-          oninput="this.nextElementSibling.value=this.value;render()">
-        <input class="num-input" id="szVal" type="number" value="32" min="4" max="100"
-          onchange="var v=Math.min(Math.max(parseInt(this.value)||4,4),100);this.value=v;document.getElementById('szSlider').value=v;render()" onclick="this.select()">
-      </div>
-    </div>
-
-    <!-- 透明度 -->
-    <div class="ctrl">
-      <label>透明度</label>
-      <div class="rrow">
-        <input type="range" id="alphaSlider" min="40" max="95" value="78"
-          oninput="this.nextElementSibling.value=this.value;render()">
-        <input class="num-input" id="alphaVal" type="number" value="78" min="40" max="95" style="min-width:58px;"
-          onchange="var v=Math.min(Math.max(parseInt(this.value)||40,40),95);this.value=v;document.getElementById('alphaSlider').value=v;render()" onclick="this.select()">
-      </div>
-    </div>
-
-    <!-- 字距 -->
-    <div class="ctrl">
-      <label>字距（上下）</label>
-      <div class="rrow">
-        <input type="range" id="letterGap" min="-200" max="100" value="4"
-          oninput="this.nextElementSibling.value=this.value;applyGaps()">
-        <input class="num-input" id="lgVal" type="number" value="4" min="-200" max="100"
-          onchange="var v=Math.min(Math.max(parseInt(this.value)||-200,-200),100);this.value=v;document.getElementById('letterGap').value=v;applyGaps()" onclick="this.select()">
-      </div>
-    </div>
-
-    <!-- 行距 -->
-    <div class="ctrl">
-      <label>行距（欄間距）</label>
-      <div class="rrow">
-        <input type="range" id="colGap" min="-200" max="160" value="8"
-          oninput="this.nextElementSibling.value=this.value;applyGaps()">
-        <input class="num-input" id="cgVal" type="number" value="8" min="-200" max="160"
-          onchange="var v=Math.min(Math.max(parseInt(this.value)||-200,-200),160);this.value=v;document.getElementById('colGap').value=v;applyGaps()" onclick="this.select()">
-      </div>
-    </div>
-
-    <!-- 欄位移 -->
-    <div class="ctrl offset-ctrl">
-      <label>各欄上下位移</label>
-      <div id="offsetSliders" style="display:flex;flex-direction:column;gap:8px;margin-top:4px;"></div>
-    </div>
-
-    <!-- 厚度 -->
-    <div class="ctrl">
-      <label>厚度層數</label>
-      <div class="rrow">
-        <input type="range" id="depthSlider" min="2" max="14" value="7"
-          oninput="this.nextElementSibling.value=this.value;render()">
-        <input class="num-input" id="depthVal" type="number" value="7" min="2" max="14"
-          onchange="var v=Math.min(Math.max(parseInt(this.value)||2,2),14);this.value=v;document.getElementById('depthSlider').value=v;render()" onclick="this.select()">
-      </div>
-    </div>
-
-    <!-- 背景 -->
-    <div class="ctrl">
-      <label>背景</label>
-      <div class="bg-row">
-        <button class="bg-btn on" onclick="setBg('#16100b',this)">暖黑</button>
-        <button class="bg-btn" onclick="setBg('#000',this)">黑</button>
-        <button class="bg-btn" onclick="setBg('#fff',this)">白</button>
-        <button class="bg-btn" onclick="setBg('#f0ede8',this)">米白</button>
-        <button class="bg-btn" onclick="setBg('transparent',this)">透明</button>
-      </div>
-    </div>
-
-    <!-- 顏色 -->
-    <div class="ctrl">
-      <label>果凍顏色</label>
-      <div class="tabs">
-        <button class="tab on" onclick="switchTab('preset',this)">🎨 預設</button>
-        <button class="tab" onclick="switchTab('solid',this)">⬛ 純色</button>
-        <button class="tab" onclick="switchTab('custom',this)">🖌️ 自訂</button>
-        <button class="tab" onclick="switchTab('gradient',this)">🌈 漸層</button>
-      </div>
-      <div id="tab-preset"><div class="swatches" id="swatches"></div></div>
-      <div id="tab-solid" style="display:none"><div class="picker-row" style="align-items:center;gap:14px;">
-        <div class="picker-group"><input type="color" id="solidColor" value="#e8651e" oninput="applySolidColor()"><span>顏色</span></div>
-        <span style="font-size:11px;color:rgba(242,237,227,0.4);line-height:1.5;">單一純色，無漸層效果</span>
-      </div></div>
-      <div id="tab-custom" style="display:none">
-        <!-- 即時漸層預覽 -->
-        <div class="cust-preview" id="custPreview"></div>
-
-        <!-- 四個色標：點色塊 → 跳出系統完整調色盤（色輪／光譜／色票／蠟筆＝更多選擇）-->
-        <div class="cust-targets">
-          <div class="cust-target on" id="ctgt-top" onclick="setCustomTarget('top')">
-            <input type="color" class="chip-input" id="customTop" value="#ffb74d"
-              oninput="onStopColor('top')">頂部
-          </div>
-          <div class="cust-target" id="ctgt-mid" onclick="setCustomTarget('mid')">
-            <input type="color" class="chip-input" id="customMid" value="#e8651e"
-              oninput="onStopColor('mid')">中段
-          </div>
-          <div class="cust-target" id="ctgt-bot" onclick="setCustomTarget('bot')">
-            <input type="color" class="chip-input" id="customBot" value="#8a2d0a"
-              oninput="onStopColor('bot')">底部
-          </div>
-        </div>
-        <div class="cust-hint" style="margin:-4px 0 10px;">👆 點色塊 = 系統完整調色盤（色輪／光譜／色票／蠟筆）。下面三種是 inline 快速挑色，作用於目前選中的色塊。</div>
-
-        <!-- 三種 inline 調色方式 -->
-        <div class="cust-modes">
-          <div class="cust-mode on" id="cmode-swatch" onclick="setCustomSub('swatch')">🎨 方塊</div>
-          <div class="cust-mode" id="cmode-slider" onclick="setCustomSub('slider')">🎚️ 滑桿</div>
-          <div class="cust-mode" id="cmode-wheel" onclick="setCustomSub('wheel')">🎡 色輪</div>
-        </div>
-
-        <!-- 方塊：Material 色票網格 -->
-        <div id="csub-swatch"><div class="cust-swatch-grid" id="custSwGrid"></div></div>
-
-        <!-- 滑桿：HSL -->
-        <div id="csub-slider" style="display:none">
-          <div class="hsl-row"><label>H</label>
-            <input type="range" class="hsl-hue" id="hslH" min="0" max="360" value="187" oninput="onHslInput()">
-            <input class="num-input" id="hslHv" type="number" min="0" max="360" value="187" onchange="hslNumSync()" onclick="this.select()"></div>
-          <div class="hsl-row"><label>S</label>
-            <input type="range" id="hslS" min="0" max="100" value="62" oninput="onHslInput()">
-            <input class="num-input" id="hslSv" type="number" min="0" max="100" value="62" onchange="hslNumSync()" onclick="this.select()"></div>
-          <div class="hsl-row"><label>L</label>
-            <input type="range" id="hslL" min="0" max="100" value="59" oninput="onHslInput()">
-            <input class="num-input" id="hslLv" type="number" min="0" max="100" value="59" onchange="hslNumSync()" onclick="this.select()"></div>
-        </div>
-
-        <!-- 色輪 -->
-        <div id="csub-wheel" style="display:none">
-          <div class="wheel-wrap">
-            <canvas id="custWheelCanvas" width="180" height="180"></canvas>
-            <div class="wheel-val-row"><label>亮度</label>
-              <input type="range" id="wheelV" min="0" max="100" value="70" oninput="drawWheel();onWheelValInput()">
-              <input class="num-input" id="wheelVv" type="number" min="0" max="100" value="70" onchange="document.getElementById('wheelV').value=this.value;drawWheel();onWheelValInput()" onclick="this.select()"></div>
-          </div>
-        </div>
-      </div>
-      <div id="tab-gradient" style="display:none"><div class="grad-grid" id="gradGrid"></div></div>
-    </div>
-
   </div><!-- end ctrl-col -->
 </div><!-- end main-layout -->
 
 <script>
+// ── 可見錯誤攔截器（環境會把錯誤遮成 "Script error."，這裡把真實內容顯示在畫面上）──
+(function(){
+  function show(msg){
+    let box=document.getElementById('__errBox');
+    if(!box){
+      box=document.createElement('div');
+      box.id='__errBox';
+      box.style.cssText='position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;max-height:40vh;overflow:auto;background:#3a0d0d;color:#ffd2d2;font:12px/1.5 monospace;padding:10px 12px;border-radius:10px;white-space:pre-wrap;border:1px solid #ff5555;';
+      box.addEventListener('click',()=>box.remove());
+      (document.body||document.documentElement).appendChild(box);
+    }
+    box.textContent += msg + '\n────────\n';
+  }
+  window.addEventListener('error', function(e){
+    const m = e.error && e.error.stack ? e.error.stack
+            : (e.message||'?') + ' @ ' + (e.filename||'?') + ':' + (e.lineno||'?') + ':' + (e.colno||'?');
+    show('JS錯誤: ' + m);
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    show('Promise錯誤: ' + (e.reason && e.reason.stack ? e.reason.stack : e.reason));
+  });
+  window.__showErr = show;
+})();
 // ── State ─────────────────────────────────────────────
 let lines = ['你的出發點很好', '但請你先別出發'];
 let offsets = [0, 0];
 let mockupDataUrl = null;
 let currentBg = '#16100b';
 let posX = 0, posY = 0, step = 5;
+/* v51：可見墨水中心 與 排版盒中心 的差(螢幕 px)。WebKit/Blink 對負 margin 的 flex
+   盒寬算法不同，靠 margin 對稱無法跨引擎置中。改成算圖後實測 getBoundingClientRect，
+   把這個差補進 transform，讓「可見的字」精準落到目標位置——與引擎、正負字距無關。 */
+let inkOffsetX = 0, inkOffsetY = 0;
 let curFont = "'Cubic11',sans-serif";
 let curFontKey = 'cubic11';
 
@@ -1069,11 +1248,55 @@ function resetPos() { posX=0; posY=0; applyPos(); }
 function setStep(s,btn) { step=s; document.querySelectorAll('.step-btn').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); persist(); }
 let autoScale = 1; // 自動縮放比例
 let fitEnabled = true; // 是否啟用自動縮放
+function clampTextPos(){
+  try{
+    const block=document.getElementById('text-block');
+    const canvas=document.getElementById('canvas');
+    if(!block||!canvas) return;
+    const cw=canvas.clientWidth, ch=canvas.clientHeight;
+    if(!(cw>0&&ch>0)) return;
+    const s=(typeof autoScale==='number'&&autoScale>0)?autoScale:1;
+    const bw=block.offsetWidth*s, bh=block.offsetHeight*s;
+    /* 允許貼到邊、再放寬一點點（6%），但不准整個飛出框外 */
+    const mx=Math.max(0,(cw-bw)/2)+cw*0.06;
+    const my=Math.max(0,(ch-bh)/2)+ch*0.06;
+    if(typeof posX==='number') posX=Math.round(Math.max(-mx,Math.min(mx,posX)));
+    if(typeof posY==='number') posY=Math.round(Math.max(-my,Math.min(my,posY)));
+  }catch(e){}
+}
 function applyPos() {
   const block=document.getElementById('text-block');
-  block.style.transform=`translate(${posX}px,${posY}px) scale(${autoScale})`;
+  clampTextPos();
+  // v51：減去實測的 inkOffset，使「可見的字」中心落到 posX/posY 指定的位置（=置中時對齊中線）。
+  // translate 與螢幕 1:1（不受 scale 影響），inkOffset 也是螢幕 px，所以一次補正即精準、不需迭代。
+  block.style.transform=`translate(${posX-inkOffsetX}px,${posY-inkOffsetY}px) scale(${autoScale})`;
   document.getElementById('posReadout').textContent=`X ${posX} / Y ${posY}`;
   persist();
+}
+
+// v51：算圖後實測「可見墨水中心 − 排版盒中心」，存成 inkOffset 供 applyPos 補正。
+// 兩者都含當前 translate/scale，相減後 translate 抵消，得到的是最終縮放下的螢幕 px 偏差。
+// 拖曳時盒與墨水一起移動、此偏差不變，所以只需每次算圖量一次，拖曳中沿用即可。
+function recenterInk(){
+  try{
+    const block=document.getElementById('text-block');
+    if(!block) return;
+    const br=block.getBoundingClientRect();
+    const boxCx=(br.left+br.right)/2, boxCy=(br.top+br.bottom)/2;
+    let L=null,R=null,T=null,B=null;
+    block.querySelectorAll('.jelly-char').forEach(ch=>{
+      const t=(ch.dataset&&ch.dataset.ch!=null)?ch.dataset.ch:ch.textContent;
+      if(String(t).replace(/\s/g,'')==='') return;       // 跳過空白方塊（不算可見墨水）
+      const r=ch.getBoundingClientRect();
+      L=(L==null)?r.left:Math.min(L,r.left);
+      R=(R==null)?r.right:Math.max(R,r.right);
+      T=(T==null)?r.top:Math.min(T,r.top);
+      B=(B==null)?r.bottom:Math.max(B,r.bottom);
+    });
+    if(L==null){ inkOffsetX=0; inkOffsetY=0; }
+    else { inkOffsetX=((L+R)/2)-boxCx; inkOffsetY=((T+B)/2)-boxCy; }
+    applyPos();
+  }catch(e){ inkOffsetX=0; inkOffsetY=0; }
 }
 
 // 自動縮放：測量文字是否超出畫布，超出就縮小
@@ -1147,6 +1370,7 @@ function toggleTshirt() {
   const wrap = document.getElementById('canvasWrap');
   const canvas = document.getElementById('canvas');
   const btn = document.getElementById('tshirtBtn');
+  if(!btn) return;   // v40：T恤預覽按鈕已移除，函式保留但不再執行
 
   if (tshirtActive) {
     // 關閉
@@ -1317,20 +1541,25 @@ async function exportPNG(hiRes) {
     } else if(!exportTransparent && currentBg!=='transparent'){
       ctx.fillStyle=currentBg; ctx.fillRect(0,0,W,H);
     }
+    const expSz=Math.max(12,Math.min(180,parseInt(document.getElementById('szSlider').value,10)||32));
     const chars=block.querySelectorAll('.jelly-char');
     const promises=[];
     chars.forEach(charDiv=>{
-      const svgEl=charDiv.querySelector('svg'); if(!svgEl) return;
+      const ch=charDiv.dataset.ch; if(ch==null) return;
       const rect=charDiv.getBoundingClientRect();
       // 相對於 text-block 左上角，加 padding 偏移
       const dx=(rect.left - blockRect.left)*scale + pad;
       const dy=(rect.top  - blockRect.top )*scale + pad;
       const dw=rect.width*scale; const dh=rect.height*scale;
-      const svgClone=svgEl.cloneNode(true);
-      const defs=svgClone.querySelector('defs')||svgClone.insertBefore(document.createElementNS('http://www.w3.org/2000/svg','defs'),svgClone.firstChild);
+      // 顯示是 CSS 文字，匯出時用同款扁平 SVG 重建（高解析很利）
+      const holder=document.createElement('div');
+      holder.innerHTML=buildCharSVG(ch, expSz);
+      const svgClone=holder.querySelector('svg'); if(!svgClone) return;
+      const defs=document.createElementNS('http://www.w3.org/2000/svg','defs');
       const style=document.createElementNS('http://www.w3.org/2000/svg','style');
       style.textContent = externalFontCSS;
-      defs.insertBefore(style,defs.firstChild);
+      defs.appendChild(style);
+      svgClone.insertBefore(defs,svgClone.firstChild);
       const svgStr=new XMLSerializer().serializeToString(svgClone);
       const blob=new Blob([svgStr],{type:'image/svg+xml'});
       const url=URL.createObjectURL(blob);
@@ -1397,22 +1626,44 @@ function removeLine(idx) {
 }
 function rebuildInputs() {
   const wrap=document.getElementById('textInputs');
+  if(!wrap) return;
   wrap.innerHTML='';
   lines.forEach((txt,i)=>{
     const row=document.createElement('div');
     row.className='line-wrap';
-    row.innerHTML=`
-      <span class="line-lbl">第${i+1}行</span>
-      <input class="line-input" type="text" maxlength="25"
-        value="${txt.replace(/"/g,'&quot;')}"
-        placeholder="最多25字"
-        oninput="updateLine(${i},this.value)">
-      <span class="cc" id="cc${i}">${txt.length}/25</span>
-      ${lines.length>1?`<button class="rm-btn" onclick="removeLine(${i})">－</button>`:''}
-    `;
+
+    const lbl=document.createElement('span');
+    lbl.className='line-lbl';
+    lbl.textContent='第'+(i+1)+'行';
+    row.appendChild(lbl);
+
+    const inp=document.createElement('input');
+    inp.className='line-input';
+    inp.type='text';
+    inp.maxLength=25;
+    inp.placeholder='最多25字';
+    inp.value=txt || '';
+    inp.addEventListener('input', function(){ updateLine(i, this.value); });
+    row.appendChild(inp);
+
+    const cc=document.createElement('span');
+    cc.className='cc';
+    cc.id='cc'+i;
+    cc.textContent=(txt || '').length+'/25';
+    row.appendChild(cc);
+
+    if(lines.length>1){
+      const rm=document.createElement('button');
+      rm.className='rm-btn';
+      rm.type='button';
+      rm.textContent='－';
+      rm.addEventListener('click', function(){ removeLine(i); });
+      row.appendChild(rm);
+    }
     wrap.appendChild(row);
   });
 }
+
 function rebuildOffsets() {
   const wrap=document.getElementById('offsetSliders');
   wrap.innerHTML='';
@@ -1454,7 +1705,7 @@ function applyOffsets() {
 }
 
 // ── Colours ───────────────────────────────────────────
-let colorMode='preset',curPal=null,curGrad=null;
+let colorMode='solid',curPal=null,curGrad=null;
 const presets=[
   {name:'橘子',base:'#ffb74d',mid:'#f57c00',dark:'#bf360c',hi:'#fff8e1',glow:'rgba(255,183,77,0.6)'},
   {name:'天藍',base:'#29b6f6',mid:'#0288d1',dark:'#01579b',hi:'#e1f5fe',glow:'rgba(41,182,246,0.6)'},
@@ -1704,7 +1955,7 @@ function onWheelValInput(){
 function h2rgb(hex){return{r:parseInt(hex.slice(1,3),16),g:parseInt(hex.slice(3,5),16),b:parseInt(hex.slice(5,7),16)};}
 function getStops(alpha){
   if(colorMode==='gradient'){const s=curGrad.stops;const {r:r0,g:g0,b:b0}=h2rgb(s[0]),{r:r1,g:g1,b:b1}=h2rgb(s[1]),{r:r2,g:g2,b:b2}=h2rgb(s[2]);return `<stop offset="0%" stop-color="rgb(${r0},${g0},${b0})" stop-opacity="${alpha}"/><stop offset="40%" stop-color="rgb(${r1},${g1},${b1})" stop-opacity="${alpha}"/><stop offset="100%" stop-color="rgb(${r2},${g2},${b2})" stop-opacity="${Math.min(alpha+0.12,1)}"/>`;}
-  if(colorMode==='solid'){const {r,g,b}=h2rgb(document.getElementById('solidColor').value);return `<stop offset="0%" stop-color="rgb(${r},${g},${b})" stop-opacity="${alpha}"/><stop offset="100%" stop-color="rgb(${r},${g},${b})" stop-opacity="${alpha}"/>`;}
+  if(colorMode==='solid'){const {r,g,b}=h2rgb(document.getElementById('solidColor').value);const a=Math.max(alpha,0.92);const dk=x=>Math.round(x*0.62);return `<stop offset="0%" stop-color="rgb(${dk(r)},${dk(g)},${dk(b)})" stop-opacity="${a}"/><stop offset="55%" stop-color="rgb(${r},${g},${b})" stop-opacity="${a}"/><stop offset="100%" stop-color="rgb(${r},${g},${b})" stop-opacity="${a}"/>`;}
   if(colorMode==='custom'){const {r:rt,g:gt,b:bt}=h2rgb(document.getElementById('customTop').value);const {r:rm,g:gm,b:bm}=h2rgb(document.getElementById('customMid').value);const {r:rb,g:gb,b:bb}=h2rgb(document.getElementById('customBot').value);return `<stop offset="0%" stop-color="rgb(${rb},${gb},${bb})" stop-opacity="${alpha}"/><stop offset="35%" stop-color="rgb(${rm},${gm},${bm})" stop-opacity="${alpha}"/><stop offset="70%" stop-color="rgb(${rt},${gt},${bt})" stop-opacity="${alpha}"/><stop offset="100%" stop-color="rgb(${rt},${gt},${bt})" stop-opacity="${Math.min(alpha+0.15,1)}"/>`;}
   const {r,g,b}=h2rgb(curPal.base),{r:dr,g:dg,b:db}=h2rgb(curPal.dark),{r:mr,g:mg,b:mb}=h2rgb(curPal.mid);
   return `<stop offset="0%" stop-color="rgb(${dr},${dg},${db})" stop-opacity="${alpha}"/><stop offset="35%" stop-color="rgb(${mr},${mg},${mb})" stop-opacity="${alpha}"/><stop offset="70%" stop-color="rgb(${r},${g},${b})" stop-opacity="${alpha}"/><stop offset="100%" stop-color="rgb(${r},${g},${b})" stop-opacity="${Math.min(alpha+0.15,1)}"/>`;
@@ -1713,7 +1964,7 @@ function getGlow(){if(colorMode==='gradient')return curGrad.glow;if(colorMode===
 function getInnerColor(){if(colorMode==='gradient'){const {r,g,b}=h2rgb(curGrad.stops[1]);return `rgba(${r},${g},${b},0.18)`;}if(colorMode==='solid'){const {r,g,b}=h2rgb(document.getElementById('solidColor').value);return `rgba(${r},${g},${b},0.18)`;}if(colorMode==='custom'){const {r,g,b}=h2rgb(document.getElementById('customMid').value);return `rgba(${r},${g},${b},0.18)`;}const {r,g,b}=h2rgb(curPal.base);return `rgba(${r},${g},${b},0.18)`;}
 function getDepthColor(i,depth,alpha){const frac=i/depth;let dc=colorMode==='gradient'?curGrad.stops[0]:colorMode==='solid'?document.getElementById('solidColor').value:colorMode==='custom'?document.getElementById('customBot').value:curPal.dark;const {r,g,b}=h2rgb(dc);const k=0.42+0.5*frac;return `rgba(${Math.round(r*k)},${Math.round(g*k)},${Math.round(b*k)},1)`;}
 
-let textDirection = 'v'; // 'v'直書 'h'橫書
+let textDirection = 'h'; // 'v'直書 'h'橫書
 function setDirection(dir, btn){
   textDirection = dir;
   const block = document.getElementById('text-block');
@@ -1729,9 +1980,15 @@ function applyGaps(){
   const lg=parseInt(document.getElementById('letterGap').value);
   const cg=parseInt(document.getElementById('colGap').value);
   const block=document.getElementById('text-block');
+  /* v50：字距「左右各半」實作。先前把整段字距塞在 marginRight，再把最後一個字的
+     margin 歸零來修對稱——但負字距時各字往左疊、唯獨最後一字沒疊，整排就不對稱，
+     而且負 margin 對 flex 容器寬度的影響在 WebKit/Blink 不一致(headless 量到置中、
+     iOS 卻偏移)。改成每個字頭尾各放 lg/2：相鄰兩字之間仍是 lg，但整行頭尾留白恆等，
+     可見字一定置中——不分正負字距、不分瀏覽器引擎，也不需要對最後一字做特例。 */
+  const half=lg/2;
   if(textDirection==='h'){
-    // 橫書：字距=水平間距（marginRight），行距=垂直間距
-    document.querySelectorAll('.jelly-char').forEach(el=>{el.style.marginBottom='0';el.style.marginRight=lg+'px';});
+    // 橫書：字距=水平間距，左右各半
+    document.querySelectorAll('.jelly-char').forEach(el=>{el.style.marginTop='0';el.style.marginBottom='0';el.style.marginLeft=half+'px';el.style.marginRight=half+'px';});
     if(cg>=0){
       block.style.gap=cg+'px';
       block.style.flexWrap='wrap';
@@ -1742,8 +1999,8 @@ function applyGaps(){
       document.querySelectorAll('.col').forEach((c,i)=>{c.style.marginTop=(i===0?0:cg)+'px';c.style.marginLeft='0';});
     }
   }else{
-    // 直書：字距=垂直間距（marginBottom），行距=水平間距
-    document.querySelectorAll('.jelly-char').forEach(el=>{el.style.marginBottom=lg+'px';el.style.marginRight='0';});
+    // 直書：字距=垂直間距，上下各半
+    document.querySelectorAll('.jelly-char').forEach(el=>{el.style.marginLeft='0';el.style.marginRight='0';el.style.marginTop=half+'px';el.style.marginBottom=half+'px';});
     if(cg>=0){
       block.style.gap=cg+'px';
       block.style.flexWrap='wrap';
@@ -1758,7 +2015,10 @@ function applyGaps(){
 }
 
 function render(){
-  const sz=parseInt(document.getElementById('szSlider').value);
+ try{
+  let sz=parseInt(document.getElementById('szSlider').value);
+  if(!Number.isFinite(sz)) sz=32;
+  sz=Math.max(12,Math.min(180,sz));
   const alpha=parseInt(document.getElementById('alphaSlider').value)/100;
   const depth=parseInt(document.getElementById('depthSlider').value);
   const block=document.getElementById('text-block');
@@ -1769,12 +2029,18 @@ function render(){
   const renderIndices = textDirection==='v' ? [...lines.keys()].reverse() : [...lines.keys()];
   renderLines.forEach((txt,i)=>{
     if(!txt) return;
+    /* v47：手機注音/自動選字常在句尾自動補一個空白(半形或全形)。makeChar 會把每個
+       字元(含空白)包成固定寬度方塊，flexbox 把含空白方塊的整行置中，可見字就被往左
+       推半格 → 看起來「對不準中線」。這裡在算圖時去掉每行頭尾空白(保留字間空白)，
+       只影響顯示/匯出，不動輸入框的值，使用者照樣能用空白鍵排版。 */
+    const lineText = String(txt).trim();
+    if(!lineText) return;                 // 整行都是空白 → 不產生空方塊
     const lineIdx=renderIndices[i];
     const col=document.createElement('div');
     col.className='col';
     col.dataset.lineIdx=lineIdx;
     col.style.animationDelay=(i*0.3)+'s';
-    [...txt].forEach((ch,ci)=>{
+    [...lineText].forEach((ch,ci)=>{
       const div=makeChar(ch,sz,alpha,depth);
       div.style.animationDelay=(ci*0.12)+'s';
       col.appendChild(div);
@@ -1782,48 +2048,49 @@ function render(){
     block.appendChild(col);
   });
   applyGaps(); applyOffsets(); fitToCanvas();
+  recenterInk();            // v51：實測可見墨水偏差並補正 transform（跨引擎置中關鍵）
   persist();
+ }catch(err){
+  if(window.__showErr) window.__showErr('render() 出錯: ' + (err && err.stack ? err.stack : err));
+ }
 }
 
+function escapeXml(value){
+  return String(value == null ? '' : value).replace(/[<>&"']/g, function(c){
+    return c === '<' ? '&lt;' : c === '>' ? '&gt;' : c === '&' ? '&amp;' : c === '"' ? '&quot;' : '&apos;';
+  });
+}
+/* 顯示用：原生 CSS 文字，與編輯預覽完全同一種渲染 —— 最清晰，且被 transform:scale 縮放時
+   iOS 仍會以向量字型清楚重繪，不會像 SVG 圖層那樣糊。字框維持 sz*1.4 × sz*1.65，
+   讓排版/間距/匯出定位與原本一致。外觀（陰影＋描邊）由 .jelly-char 的 CSS 提供，和 .v18-lite-editing 一致。 */
 function makeChar(ch,sz,alpha,depth){
-  const pad=sz*0.2,W=sz+pad*2,H=sz*1.25+pad*2,cx=W/2,cy=H/2,tY=cy+sz*0.38;
-  const ff=curFont;
-  let dh='';
-  for(let i=depth;i>=1;i--){dh+=`<text x="${cx+i*1.2}" y="${tY+i*1.2}" text-anchor="middle" font-family="${ff}" font-size="${sz}px" fill="${getDepthColor(i,depth,alpha)}">${ch}</text>`;}
-  const id='j'+Math.random().toString(36).slice(2,8);
-  const ic=getInnerColor();
-  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
-    <defs>
-      <linearGradient id="bg${id}" x1="0" y1="1" x2="0.3" y2="0">${getStops(alpha)}</linearGradient>
-      <linearGradient id="hi${id}" x1="0.08" y1="0.05" x2="0.65" y2="0.9">
-        <stop offset="0%" stop-color="rgba(255,255,255,0.88)"/>
-        <stop offset="38%" stop-color="rgba(255,255,255,0.22)"/>
-        <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
-      </linearGradient>
-      <linearGradient id="rim${id}" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="68%" stop-color="rgba(255,255,255,0)"/>
-        <stop offset="100%" stop-color="rgba(255,255,255,0.28)"/>
-      </linearGradient>
-      <clipPath id="clip${id}">
-        <text x="${cx}" y="${tY}" text-anchor="middle" font-family="${ff}" font-size="${sz}px">${ch}</text>
-      </clipPath>
-      <filter id="sb${id}"><feGaussianBlur stdDeviation="2"/></filter>
-    </defs>
-    ${dh}
-    <text x="${cx}" y="${tY}" text-anchor="middle" font-family="${ff}" font-size="${sz}px" fill="url(#bg${id})">${ch}</text>
-    <rect width="${W}" height="${H}" fill="${ic}" clip-path="url(#clip${id})" filter="url(#sb${id})"/>
-    <ellipse cx="${cx*0.58}" cy="${cy*0.46}" rx="${sz*0.32}" ry="${sz*0.18}" fill="url(#hi${id})" clip-path="url(#clip${id})"/>
-    <ellipse cx="${cx*0.46}" cy="${cy*0.34}" rx="${sz*0.08}" ry="${sz*0.05}" fill="rgba(255,255,255,0.95)" clip-path="url(#clip${id})" filter="url(#sb${id})">
-      <animate attributeName="opacity" values="0.95;0.6;0.95" dur="2.8s" repeatCount="indefinite"/>
-    </ellipse>
-    <ellipse cx="${cx*1.44}" cy="${cy*1.6}" rx="${sz*0.05}" ry="${sz*0.03}" fill="rgba(255,255,255,0.32)" clip-path="url(#clip${id})"/>
-    <text x="${cx}" y="${tY}" text-anchor="middle" font-family="${ff}" font-size="${sz}px" fill="url(#rim${id})">${ch}</text>
-    <text x="${cx}" y="${tY}" text-anchor="middle" font-family="${ff}" font-size="${sz}px" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.8">${ch}</text>
-  </svg>`;
+  const pad=sz*0.2,W=sz+pad*2,H=sz*1.25+pad*2;
   const div=document.createElement('div');
   div.className='jelly-char';
-  div.innerHTML=svg;
+  div.dataset.ch=ch;
+  div.style.width=W+'px';
+  div.style.height=H+'px';
+  div.style.fontSize=sz+'px';
+  div.style.fontFamily=curFont;
+  div.style.color=(typeof getEditVisibleColor==='function')?getEditVisibleColor():'#ff6a00';
+  div.textContent=ch;
   return div;
+}
+/* 匯出用：把同一個字做成扁平 SVG（高解析光柵化很利），外觀對齊 CSS 文字的陰影/描邊。
+   用 dominant-baseline:central + y=cy 置中，對齊 CSS 的 flex 置中。 */
+function buildCharSVG(ch,sz){
+  const safeCh=escapeXml(ch);
+  const ff=escapeXml(curFont);
+  const pad=sz*0.2,W=sz+pad*2,H=sz*1.25+pad*2,cx=W/2,cy=H/2;
+  const baseFill=(typeof getEditVisibleColor==='function')?getEditVisibleColor():'#ff6a00';
+  const s1=Math.max(1,sz*0.055), s2=Math.max(2,sz*0.11), te=Math.max(0.6,sz*0.035);
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" text-rendering="geometricPrecision">
+    <text x="${cx+s2}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-family="${ff}" font-size="${sz}px" fill="rgba(42,24,18,0.28)">${safeCh}</text>
+    <text x="${cx+s1}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-family="${ff}" font-size="${sz}px" fill="rgba(0,0,0,0.42)">${safeCh}</text>
+    <text x="${cx}" y="${cy-te}" text-anchor="middle" dominant-baseline="central" font-family="${ff}" font-size="${sz}px" fill="rgba(255,255,255,0.32)">${safeCh}</text>
+    <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-family="${ff}" font-size="${sz}px" fill="${baseFill}">${safeCh}</text>
+    <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-family="${ff}" font-size="${sz}px" fill="none" stroke="rgba(0,0,0,0.22)" stroke-width="0.7">${safeCh}</text>
+  </svg>`;
 }
 
 // 依目前 currentBg 套用預覽區背景（實色擋星光、透明顯示星空）
@@ -1853,8 +2120,9 @@ function setBg(color,btn){
 // ── Freeze ────────────────────────────────────────────
 let frozen = false;
 function toggleFreeze() {
-  frozen = !frozen;
   const btn = document.getElementById('freezeBtn');
+  if(!btn) return;   // v40：凍結畫面按鈕已移除，函式保留但不再執行
+  frozen = !frozen;
   if (frozen) {
     document.querySelectorAll('.jelly-char, .col').forEach(el => {
       el.style.animationPlayState = 'paused';
@@ -2069,6 +2337,863 @@ window.addEventListener('resize', ()=>{
   clearTimeout(resizeTimer);
   resizeTimer=setTimeout(()=>{ if(typeof fitToCanvas==='function') fitToCanvas(); }, 150);
 });
+
+// ─────────────────────────────────────────────────────────
+//  拖曳文字 + 對齊吸附 + 點預覽區輸入
+// ─────────────────────────────────────────────────────────
+(function(){
+  const canvas = document.getElementById('canvas');
+  const wrap   = document.getElementById('canvasWrap');
+  const block  = document.getElementById('text-block');
+  const guideLayer = document.getElementById('guideLayer');
+  const vGuides = [...guideLayer.querySelectorAll('.guide-line.v')];
+  const hGuides = [...guideLayer.querySelectorAll('.guide-line.h')];
+
+  const SNAP = 14;         // 吸附距離（px，未縮放座標）。越大越「黏」，交界處卡點越明顯
+  let dragging = false;
+  let moved = false;       // 是否真的拖動過（區分點按 vs 拖曳）
+  let startX, startY, baseX, baseY, pointerId=null;
+  let dragBaseCx=0, dragBaseCy=0;   // 按下瞬間量一次的「無位移基準中心」，全程固定避免回饋抖動
+  // v25：雙指縮放狀態（主畫面 canvas 原本只有拖曳，這裡補上 pinch 改字體大小）
+  const ptrs=new Map();
+  let pinching=false, pinchStartDist=1, pinchStartSize=48;
+  // v32：雙指同時縮放＋平移。記住捏合開始時兩指中心與當下位置，移動中心就帶著字一起跑。
+  let pinchStartCx=0, pinchStartCy=0, pinchBaseX=0, pinchBaseY=0;
+
+  block.classList.add('draggable');
+
+  // 把參考線定位到目前畫布尺寸（中線、1/4、3/4）
+  function layoutGuides(){
+    // v46：用 guideLayer 自身的內框尺寸，而非 wrap 的 border-box（含 1px 邊框會偏移）。
+    // guideLayer 與 canvas 同框，0.5×寬 = canvas cw/2 = 吸附中心線位置，兩者精準重合。
+    const w = guideLayer.clientWidth, h = guideLayer.clientHeight;
+    vGuides.forEach(g=>{ g.style.left = (parseFloat(g.dataset.gx)*w)+'px'; });
+    hGuides.forEach(g=>{ g.style.top  = (parseFloat(g.dataset.gy)*h)+'px'; });
+  }
+  layoutGuides();
+  window.addEventListener('resize', layoutGuides);
+
+  function hideGuides(){ guideLayer.querySelectorAll('.guide-line').forEach(g=>g.classList.remove('show')); }
+
+  // v34：固定像素格距（正方形格線）。GRID_PX 同時驅動 CSS 背景與吸附，兩邊保證對齊。
+  const GRID_PX = 40;
+  canvas.classList.add('show-grid');
+  canvas.style.setProperty('--gridPx', GRID_PX+'px');
+
+  // 算出吸附後的 posX/posY，吸到最近的網格線（交界處卡一下）
+  // baseCx/baseCy 使用按下瞬間量好的固定基準，不在拖曳中重量，避免回饋迴圈造成抖動
+  function snapPos(px, py){
+    const cv = canvas;                  // 用 canvas 盒座標，與 text-block 的 offsetLeft/Top 同一基準
+    const cw = cv.clientWidth, ch = cv.clientHeight;
+    const baseCx = dragBaseCx;
+    const baseCy = dragBaseCy;
+    hideGuides();
+    let outX = px, outY = py;
+
+    // 橫向：以預覽區中心為原點，往兩邊每 GRID_PX 一條垂直線。確保中心線存在。
+    const cxLine = cw/2;
+    let bestVDist=SNAP+1, bestVX=null, bestVLine=0;
+    for(let gx = cxLine % GRID_PX; gx <= cw; gx += GRID_PX){
+      const targetPx = gx - baseCx;        // 要讓文字中心落在 gx，需要的 posX
+      const d = Math.abs(targetPx - px);
+      if(d < bestVDist){ bestVDist=d; bestVX=Math.round(targetPx); bestVLine=gx; }
+    }
+    if(bestVX!=null && bestVDist<=SNAP){ outX=bestVX; showGuideAt('v', bestVLine); }
+
+    // 縱向：以中心為原點往兩邊每 GRID_PX 一條水平線
+    const cyLine = ch/2;
+    let bestHDist=SNAP+1, bestHY=null, bestHLine=0;
+    for(let gy = cyLine % GRID_PX; gy <= ch; gy += GRID_PX){
+      const targetPy = gy - baseCy;
+      const d = Math.abs(targetPy - py);
+      if(d < bestHDist){ bestHDist=d; bestHY=Math.round(targetPy); bestHLine=gy; }
+    }
+    if(bestHY!=null && bestHDist<=SNAP){ outY=bestHY; showGuideAt('h', bestHLine); }
+
+    return [outX, outY];
+  }
+  // 動態高亮被吸附到的那條網格線（亮橘，疊在淡格線上）
+  function showGuideAt(dir, pos){
+    let el = guideLayer.querySelector('.grid-snap.'+dir);
+    if(!el){ el=document.createElement('div'); el.className='guide-line grid-snap '+dir+' center'; guideLayer.appendChild(el); }
+    /* v45：pos 是 canvas 盒座標，但線畫在 guideLayer（canvasWrap）上。
+       canvas 在 wrap 裡有 padding/border 造成的偏移，補上去才會對齊格線與字。 */
+    const cr=canvas.getBoundingClientRect();
+    const gr=guideLayer.getBoundingClientRect();
+    const offX=cr.left-gr.left, offY=cr.top-gr.top;
+    if(dir==='v'){ el.style.left=(pos+offX)+'px'; } else { el.style.top=(pos+offY)+'px'; }
+    el.classList.add('show');
+  }
+
+  function onDown(e){
+    if(editOpen) return;
+    ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(ptrs.size>=2){
+      /* 第二指落下 → 雙指縮放。
+         關鍵：先放掉第一指的 pointer capture，否則 capture 會把所有 pointer 事件
+         獨佔導向第一指，第二指的 move 收不到，pinch 永遠算不出距離變化。 */
+      if(pointerId!=null && canvas.releasePointerCapture){ try{ canvas.releasePointerCapture(pointerId); }catch(_){} }
+      pointerId=null;
+      pinching=true; dragging=false; moved=true;
+      const a=[...ptrs.values()];
+      pinchStartDist=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)||1;
+      pinchStartSize=parseInt(document.getElementById('szSlider').value)||48;
+      pinchStartCx=(a[0].x+a[1].x)/2; pinchStartCy=(a[0].y+a[1].y)/2;
+      pinchBaseX=posX; pinchBaseY=posY;
+      canvas.classList.remove('dragging');
+      e.preventDefault();
+      return;
+    }
+    dragging = true; moved = false;
+    pointerId = e.pointerId;
+    startX = e.clientX; startY = e.clientY;
+    baseX = posX; baseY = posY;
+    // v46：dragBaseCx/Cy 要的是「posX=0 時的排版中心」。offsetLeft/Top 是版面座標，
+    // 本來就不含 transform(translate)，所以直接就是 posX=0 的中心，千萬不能再扣 posX/posY，
+    // 否則文字已被移動過(posX≠0)時吸附目標會整個偏掉 → 十字線跑掉、X/Y 不歸零。
+    dragBaseCx = block.offsetLeft + block.offsetWidth/2;
+    dragBaseCy = block.offsetTop + block.offsetHeight/2;
+    canvas.classList.add('dragging');
+    /* v31：不在此處 setPointerCapture。先前在第一指就 capture 會獨佔事件、擋掉第二指，
+       導致無法雙指縮放。改成等 onMove 確認真的是單指拖曳後再 capture。 */
+    e.preventDefault();
+  }
+  function onMove(e){
+    if(ptrs.has(e.pointerId)) ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pinching && ptrs.size>=2){
+      const a=[...ptrs.values()];
+      const d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)||1;
+      let ns=Math.round(pinchStartSize*(d/pinchStartDist));
+      ns=Math.max(12,Math.min(180,ns));
+      const s=document.getElementById('szSlider'); const n=document.getElementById('szVal');
+      if(s) s.value=ns; if(n) n.value=ns;
+      /* 同時平移：兩指中心相對起始中心的位移，換算回未縮放座標後加到位置上 */
+      const cx=(a[0].x+a[1].x)/2, cy=(a[0].y+a[1].y)/2;
+      const sc=autoScale||1;
+      posX=Math.round(pinchBaseX+(cx-pinchStartCx)/sc);
+      posY=Math.round(pinchBaseY+(cy-pinchStartCy)/sc);
+      render();      // render 內含 applyPos → 會套用新位置並夾在框內
+      e.preventDefault();
+      return;
+    }
+    if(!dragging) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if(Math.abs(dx)>3 || Math.abs(dy)>3){
+      if(!moved && pointerId!=null && canvas.setPointerCapture){ try{ canvas.setPointerCapture(pointerId); }catch(_){} }
+      moved = true;
+    }
+    const s = autoScale || 1;          // 拖動量除以縮放，手感才一致
+    let nx = Math.round(baseX + dx/s);
+    let ny = Math.round(baseY + dy/s);
+    [nx, ny] = snapPos(nx, ny);
+    posX = nx; posY = ny;
+    applyPos();
+    e.preventDefault();
+  }
+  function onUp(e){
+    ptrs.delete(e.pointerId);
+    if(pinching){
+      if(ptrs.size>=2){ return; }   // 還有兩指以上，繼續 pinch
+      if(ptrs.size===1){
+        /* v41：雙指放開到剩一指 → 無縫接管成單指拖曳。
+           用剩下那指當新起點、以目前 posX/posY 為基準，避免停住或跳位。 */
+        pinching=false;
+        const p=[...ptrs.entries()][0];   // [pointerId, {x,y}]
+        pointerId=p[0];
+        startX=p[1].x; startY=p[1].y;
+        baseX=posX; baseY=posY;
+        dragging=true; moved=true;        // 接續手勢，放開時不觸發進入編輯
+        dragBaseCx = block.offsetLeft + block.offsetWidth/2;   // v46：同上，不扣 posX/posY
+        dragBaseCy = block.offsetTop + block.offsetHeight/2;
+        canvas.classList.add('dragging');
+        if(pointerId!=null && canvas.setPointerCapture){ try{ canvas.setPointerCapture(pointerId); }catch(_){} }
+        return;
+      }
+      // ptrs.size===0：全放開
+      pinching=false; dragging=false; canvas.classList.remove('dragging'); hideGuides();
+      return;
+    }
+    if(!dragging) return;
+    dragging = false;
+    canvas.classList.remove('dragging');
+    hideGuides();
+    if(pointerId!=null && canvas.releasePointerCapture){ try{ canvas.releasePointerCapture(pointerId); }catch(_){} }
+    pointerId = null;
+    if(!moved){ openEdit(); }   // 沒拖動 = 點按 → 進入編輯模式
+  }
+
+  canvas.addEventListener('pointerdown', onDown);
+  canvas.addEventListener('pointermove', onMove);
+  canvas.addEventListener('pointerup', onUp);
+  canvas.addEventListener('pointercancel', onUp);
+})();
+
+// 點預覽 → 浮動輸入框
+// ─────────────────────────────────────────────────────────
+//  全螢幕編輯模式：即時鍵盤輸入 + 字型橫列 + 大小滑桿 + 顏色
+// ─────────────────────────────────────────────────────────
+let editOpen = false;
+let editPrevParent = null;   // 記住 canvasWrap 原本的位置，關閉時還原
+
+// 字型清單（key + 顯示名 + family）取自主工具列
+function editFontList(){
+  return [...document.querySelectorAll('.font-btn')]
+    .filter(b=>b.id && b.id.startsWith('fb-') && /setFont\('/.test(b.getAttribute('onclick')||''))
+    .map(b=>({
+      key: (b.getAttribute('onclick').match(/setFont\('([^']+)'/)||[])[1],
+      name: (b.querySelector('.fn')?.textContent||'').trim(),
+      fam: (b.querySelector('.fp')?.getAttribute('style')||'').replace('font-family:','').replace(/;$/,''),
+      btn: b
+    }))
+    .filter(f=>f.key);
+}
+
+function buildEditFontRow(){
+  const row=document.getElementById('editFontRow');
+  row.innerHTML='';
+  editFontList().forEach(f=>{
+    const b=document.createElement('button');
+    b.className='ef-btn'+(f.btn.classList.contains('on')?' on':'');
+    b.textContent=f.name;
+    b.style.fontFamily=f.fam;
+    b.dataset.key=f.key;
+    b.onclick=()=>{
+      setFont(f.key, f.btn);                 // 重用主邏輯（會 render）
+      row.querySelectorAll('.ef-btn').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on');
+      /* v24：setFont 走主 render() 會把編輯模式畫好的顏色蓋成預設白色。
+         這裡重跑 renderLite，把編輯渲染（含目前選的顏色）重新套回去。 */
+      if(typeof renderLite==='function') renderLite();
+    };
+    row.appendChild(b);
+  });
+}
+
+// 顏色面板：色票列 + HSL 滑桿
+function buildEditColorRow(){
+  const row=document.getElementById('editSwatchRow');
+  row.innerHTML='';
+  presets.forEach((p,i)=>{
+    const s=document.createElement('button');
+    s.className='ec-sw'+(colorMode==='preset'&&curPal===p?' on':'');
+    s.style.background=`linear-gradient(160deg,${p.hi},${p.base},${p.dark})`;
+    s.onclick=()=>{
+      const mainSw=document.querySelectorAll('.swatch')[i];
+      if(mainSw){ mainSw.click(); } else { curPal=p; colorMode='preset'; render(); }
+      row.querySelectorAll('.ec-sw').forEach(x=>x.classList.remove('on'));
+      s.classList.add('on');
+    };
+    row.appendChild(s);
+  });
+  gradients.forEach((g)=>{
+    const s=document.createElement('button');
+    s.className='ec-sw'+(colorMode==='gradient'&&curGrad===g?' on':'');
+    s.style.background=`linear-gradient(135deg,${g.stops[0]},${g.stops[1]},${g.stops[2]})`;
+    s.onclick=()=>{
+      curGrad=g; colorMode='gradient'; render();
+      row.querySelectorAll('.ec-sw').forEach(x=>x.classList.remove('on'));
+      s.classList.add('on');
+    };
+    row.appendChild(s);
+  });
+}
+
+// 色相/明度滑桿 → 設成純色
+function hsl2hex(h,s,l){
+  s/=100; l/=100;
+  const k=n=>(n+h/30)%12;
+  const a=s*Math.min(l,1-l);
+  const f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));
+  const to=x=>Math.round(255*x).toString(16).padStart(2,'0');
+  return `#${to(f(0))}${to(f(8))}${to(f(4))}`;
+}
+// v44：編輯模式彩色鈕現在是 label 直接包住可點的透明 color input，
+// 點下去 iOS 一定彈出系統調色盤。這裡只在開啟前把目前顏色帶進去當預設。
+function editSeedSysColor(){
+  const sys=document.getElementById('editSysColor');
+  const cur=document.getElementById('solidColor');
+  if(sys && cur && cur.value) sys.value=cur.value;
+}
+function editApplySysColor(hex){
+  const inp=document.getElementById('solidColor');
+  if(inp) inp.value=hex;
+  colorMode='solid';
+  const dot=document.getElementById('editColorDot');
+  if(dot) dot.style.boxShadow=`inset 0 0 0 3px ${hex}`;
+  if(typeof renderLite==='function') renderLite();
+}
+
+function editApplyHsl(){
+  const h=+document.getElementById('editHue').value;
+  const l=+document.getElementById('editLight').value;
+  const hex=hsl2hex(h,90,l);
+  const inp=document.getElementById('solidColor');
+  if(inp) inp.value=hex;
+  colorMode='solid';
+  // 同步主工具列的純色頁籤狀態（若存在）
+  if(typeof renderLite==='function') renderLite(); // v20 fix: 原本呼叫未定義的 liveRender() 會丟錯
+  // 更新色盤圖示中心顏色提示
+  const dot=document.getElementById('editColorDot');
+  if(dot) dot.style.boxShadow=`inset 0 0 0 3px ${hex}`;
+}
+
+function getEditVisibleColor(){
+  try{
+    if(colorMode==='solid'){
+      const el=document.getElementById('solidColor');
+      if(el && el.value) return el.value;
+    }
+    if(colorMode==='gradient' && curGrad && curGrad.stops) return curGrad.stops[1] || curGrad.stops[0] || '#ff6a00';
+    if(curPal && curPal.base) return curPal.base;
+  }catch(_){ }
+  return '#ff6a00';
+}
+function clampNum(v,min,max){ return Math.max(min, Math.min(max, v)); }
+function getEditSize(){
+  const el=document.getElementById('szSlider');
+  const v=el ? parseInt(el.value,10) : 48;
+  return clampNum(Number.isFinite(v)?v:48,12,180);
+}
+function setEditSize(v, liteOnly){
+  v=clampNum(Math.round(v),12,180);
+  const s=document.getElementById('szSlider');
+  const n=document.getElementById('szVal');
+  if(s) s.value=String(v);
+  if(n) n.value=String(v);
+  updateEditSizeRail();
+  if(editOpen || liteOnly) renderLite(); else render();
+}
+function syncInputToLines(){
+  const inp=document.getElementById('editInput');
+  if(!inp) return;
+  let arr=String(inp.value || '').replace(/\r/g,'').split('\n');
+  arr=arr.slice(0,6).map(s=>Array.from(s).slice(0,25).join(''));
+  if(arr.length===0) arr=[''];
+  lines=arr;
+  while(offsets.length<lines.length) offsets.push(0);
+  offsets.length=lines.length;
+}
+function renderLite(tempText){
+  const block=document.getElementById('text-block');
+  if(!block) return;
+  const source = (typeof tempText === 'string') ? tempText : lines.join('\n');
+  let arr=String(source || '').replace(/\r/g,'').split('\n').slice(0,6);
+  if(arr.length===0) arr=[''];
+  block.innerHTML='';
+  block.classList.add('v18-lite-editing');
+  block.classList.toggle('horizontal', textDirection==='h');
+  block.style.fontFamily=curFont;
+  block.style.fontSize=getEditSize()+'px';
+  block.style.color=getEditVisibleColor();
+  block.style.transform=`translate(${posX}px,${posY}px) scale(${autoScale||1})`;
+  const hasText=arr.join('').length>0;
+  if(!hasText) arr=['輸入文字'];
+  const renderArr = textDirection==='v' ? arr.slice().reverse() : arr;
+  renderArr.forEach(function(txt){
+    const line=document.createElement('div');
+    line.className='v18-lite-line';
+    if(!hasText) line.classList.add('is-placeholder');
+    line.textContent=txt;
+    block.appendChild(line);
+  });
+  applyPos();
+}
+function finalizeEditRender(){
+  const block=document.getElementById('text-block');
+  if(block){
+    block.classList.remove('v18-lite-editing');
+    block.classList.remove('lite-vmode');
+    block.style.fontFamily='';
+    block.style.fontSize='';
+    block.style.color='';
+  }
+  rebuildInputs();
+  rebuildOffsets();
+  render();
+  /* v25：iOS Safari 的 SVG <text> 可能在自訂字型載入完成前就畫好、抓到 fallback，
+     而且不會自動重畫。等目前字型確定載入後再 render 一次，確保完成後字體正確。 */
+  if(document.fonts && document.fonts.load){
+    try{
+      var fm=(typeof curFont==='string'?curFont:'').match(/'([^']+)'/);
+      var p = fm ? document.fonts.load("32px '"+fm[1]+"'") : document.fonts.ready;
+      Promise.resolve(p).then(function(){ try{ render(); }catch(e){} }).catch(function(){});
+    }catch(e){}
+  }
+}
+function openEdit(){
+  try{
+    if(editOpen) return;
+    editOpen=true;
+    const ov=document.getElementById('editOverlay');
+    const wrap=document.getElementById('canvasWrap');
+    const preview=document.getElementById('editPreview');
+    const input=document.getElementById('editInput');
+    if(!ov || !wrap || !preview || !input) return;
+    editPrevParent=wrap.parentNode;
+    preview.appendChild(wrap);
+    ov.classList.add('show');
+    buildEditFontRow();
+    buildEditColorRow();
+    const dirBtn=document.getElementById('etDir');
+    if(dirBtn){ dirBtn.classList.toggle('et-vmode', textDirection==='v'); dirBtn.setAttribute('title', textDirection==='v'?'直書':'橫書'); }
+    input.value=lines.join('\n');
+    renderLite();
+    layoutEditOverlay();
+    setTimeout(function(){ layoutEditOverlay(); renderLite(); }, 50);
+    // iOS：focus 盡量貼在使用者點擊 openEdit 的同一個事件中
+    input.focus();
+    try{ const n=input.value.length; input.setSelectionRange(n,n); }catch(_){ }
+  }catch(err){ if(window.__showErr) window.__showErr('openEdit v18 出錯: '+(err&&err.stack?err.stack:err)); }
+}
+function closeEdit(){
+  if(!editOpen) return;
+  const input=document.getElementById('editInput');
+  if(input) input.blur();
+  syncInputToLines();
+  editOpen=false;
+  const ov=document.getElementById('editOverlay');
+  const wrap=document.getElementById('canvasWrap');
+  if(ov) ov.classList.remove('show');
+  if(editPrevParent && wrap) editPrevParent.insertBefore(wrap, editPrevParent.querySelector('.pos-panel')||null);
+  const panel=document.getElementById('editColorPanel');
+  const colorBtn=document.getElementById('etColor');
+  if(panel) panel.classList.remove('show');
+  if(colorBtn) colorBtn.classList.remove('on');
+  finalizeEditRender();
+  setTimeout(function(){ if(typeof fitToCanvas==='function') fitToCanvas(); }, 80);
+}
+function editFocusInput(){
+  const input=document.getElementById('editInput');
+  if(!input) return;
+  input.focus();
+  try{ const n=input.value.length; input.setSelectionRange(n,n); }catch(_){ }
+}
+function editToggleColors(){
+  const panel=document.getElementById('editColorPanel');
+  const btn=document.getElementById('etColor');
+  if(!panel) return;
+  const on=!panel.classList.contains('show');
+  panel.classList.toggle('show', on);
+  if(btn) btn.classList.toggle('on', on);
+  if(on) buildEditColorRow();
+  if(on){
+    /* v23：開顏色面板就收掉鍵盤。調色不需要鍵盤，收掉後整個畫面騰出來，
+       顏色面板穩穩待在工具列正上方，不會被擠到頂端、滑桿也不會被擋。 */
+    var inp=document.getElementById('editInput');
+    if(inp){ try{ inp.blur(); }catch(e){} }
+    setTimeout(function(){ try{layoutEditOverlay();}catch(e){} }, 30);
+    setTimeout(function(){ try{layoutEditOverlay();}catch(e){} }, 240);
+  }else{
+    /* 關掉顏色面板，把鍵盤叫回來繼續打字 */
+    setTimeout(function(){ try{layoutEditOverlay();}catch(e){} editFocusInput(); }, 30);
+  }
+}
+function editToggleDir(){
+  textDirection = textDirection==='v' ? 'h' : 'v';
+  const tb=document.getElementById('text-block');
+  if(tb) tb.classList.toggle('horizontal', textDirection==='h');
+  document.getElementById('dirV').classList.toggle('on', textDirection==='v');
+  document.getElementById('dirH').classList.toggle('on', textDirection==='h');
+  const btn=document.getElementById('etDir');
+  if(btn){ btn.classList.toggle('et-vmode', textDirection==='v'); btn.setAttribute('title', textDirection==='v'?'直書':'橫書'); }
+  renderLite();
+  editFocusInput();
+}
+function editCenterText(){
+  posX=0; posY=0; applyPos(); renderLite(); editFocusInput();
+}
+function updateEditSizeRail(){
+  const fill=document.getElementById('editRailFill');
+  const thumb=document.getElementById('editRailThumb');
+  if(!fill || !thumb) return;
+  const ratio=(getEditSize()-12)/(180-12);
+  fill.style.height=(ratio*100)+'%';
+  thumb.style.bottom=(ratio*100)+'%';
+}
+function setEditSizeFromY(clientY){
+  const track=document.querySelector('#editSizeRail .editRailTrack');
+  if(!track) return;
+  const r=track.getBoundingClientRect();
+  let ratio=1-((clientY-r.top)/r.height);
+  ratio=clampNum(ratio,0,1);
+  setEditSize(12+ratio*(180-12), true);
+}
+function layoutEditOverlay(){
+  const ov=document.getElementById('editOverlay');
+  if(!ov || !editOpen) return;
+  if(window.visualViewport){
+    ov.style.top=(window.visualViewport.offsetTop||0)+'px';
+    ov.style.height=(window.visualViewport.height||window.innerHeight)+'px';
+  }else{
+    ov.style.top='0px'; ov.style.height='100vh';
+  }
+  updateEditSizeRail();
+}
+
 </script>
+<!-- v18：乾淨重建的全螢幕 IG 風格編輯模式，不再堆疊 v9～v17 補丁。 -->
+<style id="v18-clean-editor-style">
+#editOverlay{position:fixed;left:0;right:0;top:0;height:100dvh;z-index:9999;display:none;flex-direction:column;background:radial-gradient(circle at 50% 0%,rgba(255,106,0,.12),rgba(0,0,0,0) 32%),#050507;overflow:hidden;touch-action:none;}
+#editOverlay.show{display:flex;}
+#editTop{flex:none;display:grid;grid-template-columns:72px 1fr 92px;align-items:center;gap:10px;padding:calc(12px + env(safe-area-inset-top,0px)) 18px 8px;}
+.editClose{width:54px;height:54px;border-radius:50%;border:1px solid rgba(255,255,255,.18);background:rgba(42,45,54,.86);color:#fff;font-size:36px;line-height:1;display:grid;place-items:center;}
+.editTitle{justify-self:center;background:rgba(12,14,20,.66);color:#fff;font-size:18px;font-weight:900;letter-spacing:.03em;border-radius:999px;padding:10px 18px;white-space:nowrap;}
+#editDone{justify-self:end;background:#ff6a00!important;color:#111!important;border:0!important;border-radius:999px!important;font-size:18px!important;font-weight:900!important;padding:14px 18px!important;box-shadow:0 14px 30px rgba(255,106,0,.28);}
+#editStage{flex:1 1 auto;min-height:0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:none;}
+#editPreview{width:100%;height:100%;padding:12px;display:flex;align-items:center;justify-content:center;}
+#editPreview #canvasWrap{width:100%!important;height:100%!important;max-height:none!important;min-height:0!important;border-radius:20px!important;}
+#editInput{position:absolute;left:50%;top:50%;width:2px;height:2px;min-height:2px;max-height:2px;opacity:.01;border:0;padding:0;margin:0;background:transparent;color:transparent;-webkit-text-fill-color:transparent;caret-color:transparent;outline:none;resize:none;pointer-events:none;font-size:16px;line-height:16px;z-index:-1;}
+#editPanel{flex:none;z-index:30;padding:0 14px calc(10px + env(safe-area-inset-bottom,0px));background:transparent;}
+#editFontRow{display:flex;gap:10px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:8px 0 12px;}
+#editFontRow::-webkit-scrollbar{display:none}.ef-btn{flex:0 0 auto;min-width:128px;padding:14px 16px;border-radius:18px;border:1px solid rgba(255,255,255,.18);background:rgba(13,16,23,.82);color:#fff;font-size:17px;font-weight:900;white-space:nowrap}.ef-btn.on{background:#fff;color:#111;border-color:#fff;}
+#editToolbar{height:72px;border-radius:24px;background:linear-gradient(180deg,rgba(31,36,49,.96),rgba(15,18,27,.96));border:1px solid rgba(255,255,255,.12);box-shadow:0 18px 42px rgba(0,0,0,.42);display:flex;align-items:center;gap:10px;padding:8px;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);}
+.et-btn{position:relative;height:56px;min-width:58px;border:0;border-radius:17px;background:transparent;color:#fff;font-size:28px;font-weight:900;display:grid;place-items:center}.et-btn.on,.et-btn:active{background:rgba(255,255,255,.16)}.et-btn.wide{min-width:96px;font-size:17px}.et-spacer{flex:1}#editColorDot{width:34px;height:34px;border-radius:50%;display:block;background:conic-gradient(red,#ff0,lime,cyan,blue,magenta,red);box-shadow:0 0 0 4px rgba(255,255,255,.12)}
+#editColorPanel{display:none;margin-top:10px;padding:14px;border-radius:22px;background:rgba(17,18,24,.96);border:1px solid rgba(255,255,255,.14);box-shadow:0 16px 42px rgba(0,0,0,.42)}#editColorPanel.show{display:block}.hue-row{display:grid;grid-template-columns:46px 1fr;gap:10px;align-items:center;color:#fff;font-weight:800;margin:8px 0}.grad-slider{width:100%;accent-color:#ff6a00}.ec-sw{width:34px;height:34px;border-radius:50%;border:2px solid transparent}.ec-sw.on{border-color:#fff}#editSwatchRow{display:flex;gap:8px;overflow-x:auto;margin-top:10px}
+#editSizeRail{position:absolute;left:30px;top:22%;bottom:18%;width:54px;display:flex;align-items:center;justify-content:center;z-index:34;touch-action:none}.editRailTrack{position:relative;width:10px;height:100%;border-radius:99px;background:rgba(255,255,255,.34);box-shadow:inset 0 0 0 1px rgba(255,255,255,.22)}#editRailFill{position:absolute;left:0;right:0;bottom:0;border-radius:99px;background:rgba(255,255,255,.92)}#editRailThumb{position:absolute;left:50%;width:48px;height:48px;border-radius:50%;background:#fff;transform:translate(-50%,50%);box-shadow:0 6px 18px rgba(0,0,0,.4)}
+#text-block.v18-lite-editing{display:flex!important;align-items:center;justify-content:center;gap:.16em;max-width:88%!important;max-height:64%!important;line-height:1.12!important;font-weight:900!important;letter-spacing:.04em!important;text-align:center!important;white-space:pre-wrap!important;word-break:break-word!important;text-shadow:.055em .055em 0 rgba(0,0,0,.42),.11em .11em 0 rgba(42,24,18,.28),0 -.035em 0 rgba(255,255,255,.32)!important;-webkit-text-stroke:.7px rgba(0,0,0,.22);will-change:transform;}
+#text-block.v18-lite-editing.horizontal{flex-direction:column!important}.v18-lite-line{display:block}.v18-lite-line.is-placeholder{opacity:.35;color:#fff!important;-webkit-text-stroke:0!important;text-shadow:none!important}
+/* v30：直書編輯預覽。不用 writing-mode（iOS WebView 會把它算成水平反向），改用逐字直欄 flex，與成品 render() 排法一致。需同時有 .v18-lite-editing 才生效，完成後 class 被移除就不影響成品。 */
+#text-block.v18-lite-editing.lite-vmode{flex-direction:row-reverse!important;align-items:flex-start!important;justify-content:center!important;writing-mode:horizontal-tb!important;}
+#text-block.v18-lite-editing.lite-vmode .v18-lite-line{display:flex!important;flex-direction:column!important;align-items:center!important;}
+#text-block.v18-lite-editing.lite-vmode .lite-vchar{display:block!important;}
+body.v18-editing .jelly-char,body.v18-editing .col{animation:none!important;}
+</style>
+<div id="editOverlay">
+  <div id="editTop">
+    <button class="editClose" type="button" onclick="closeEdit()" aria-label="關閉">×</button>
+    <div class="editTitle">PLUS ONE 文字編輯</div>
+    <button id="editDone" type="button" onclick="closeEdit()">完成</button>
+  </div>
+  <div id="editStage">
+    <div id="editPreview"></div>
+    <div id="editSizeRail" aria-label="字體大小滑桿"><div class="editRailTrack"><div id="editRailFill"></div><div id="editRailThumb"></div></div></div>
+    <div id="editPinchHint">雙指縮放文字大小</div>
+    <textarea id="editInput" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+  </div>
+  <div id="editPanel">
+    <div id="editFontRow"></div>
+    <div id="editToolbar">
+      <button class="et-btn on" id="etKeyboard" type="button" onclick="editFocusInput()" aria-label="鍵盤" title="鍵盤">Aa</button>
+      <label class="et-btn" id="etColor" aria-label="顏色" title="顏色" style="cursor:pointer;">
+        <span id="editColorDot"></span>
+        <input type="color" id="editSysColor" value="#e8651e" onpointerdown="editSeedSysColor()" oninput="editApplySysColor(this.value)"
+          style="position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0;padding:0;margin:0;cursor:pointer;">
+      </label>
+      <button class="et-btn et-ico et-dir" id="etDir" type="button" onclick="editToggleDir()" aria-label="切換直書／橫書" title="橫書">
+        <svg class="ic-h" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="13" y2="17"/></svg>
+        <svg class="ic-v" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="7" y1="4" x2="7" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="17" y1="4" x2="17" y2="13"/></svg>
+        <span class="et-dir-label lab-h">橫書</span>
+        <span class="et-dir-label lab-v">直書</span>
+      </button>
+      <button class="et-btn et-ico" id="etCenter" type="button" onclick="editCenterText()" aria-label="置中" title="置中">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="7" x2="18" y2="7"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="7" y1="17" x2="17" y2="17"/></svg>
+      </button>
+      <button class="et-btn et-ico" id="etExport" type="button" onclick="exportPNG(false)" aria-label="匯出" title="匯出">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"/><path d="M8 10l4 4 4-4"/><path d="M5 17v1.5A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V17"/></svg>
+      </button>
+    </div>
+    <div id="editColorPanel">
+      <div class="hue-row"><label>色相</label><input type="range" id="editHue" class="grad-slider" min="0" max="360" value="24" oninput="editApplyHsl();renderLite();"></div>
+      <div class="hue-row"><label>明度</label><input type="range" id="editLight" class="grad-slider" min="20" max="92" value="58" oninput="editApplyHsl();renderLite();"></div>
+      <div id="editSwatchRow"></div>
+    </div>
+  </div>
+</div>
+<script id="v20-dedupe-input-binding">
+/* v20：v18 與 v19 都會對 #editInput 綁定輸入事件，造成每次按鍵渲染兩次。
+   這裡在 v18 腳本執行前先佔用 v18Bound 旗標，使 v18 的 bindInput() 直接 return，
+   只留 v19 的綁定生效。size rail / stage 手勢的 v18Bound 旗標掛在別的元素，不受影響。 */
+(function(){var i=document.getElementById('editInput');if(i)i.dataset.v18Bound='1';})();
+</script>
+<script id="v18-clean-editor-script">
+(function(){
+  function byId(id){return document.getElementById(id);}
+  function bindInput(){
+    const input=byId('editInput');
+    if(!input || input.dataset.v18Bound==='1') return;
+    input.dataset.v18Bound='1';
+    function sync(e){
+      if(!editOpen) return;
+      syncInputToLines();
+      renderLite();
+    }
+    input.addEventListener('input',sync);
+    input.addEventListener('change',sync);
+    input.addEventListener('compositionstart',function(e){ setTimeout(sync,0); });
+    input.addEventListener('compositionupdate',function(e){ setTimeout(sync,0); });
+    input.addEventListener('compositionend',function(e){ setTimeout(sync,0); });
+    input.addEventListener('keydown',function(e){ setTimeout(sync,0); });
+    input.addEventListener('keyup',function(e){ setTimeout(sync,0); });
+  }
+  function bindSizeRail(){
+    const rail=byId('editSizeRail');
+    if(!rail || rail.dataset.v18Bound==='1') return;
+    rail.dataset.v18Bound='1';
+    let active=false;
+    rail.addEventListener('pointerdown',function(e){active=true;setEditSizeFromY(e.clientY);try{rail.setPointerCapture(e.pointerId);}catch(_){} e.preventDefault();});
+    rail.addEventListener('pointermove',function(e){if(!active)return;setEditSizeFromY(e.clientY);e.preventDefault();});
+    rail.addEventListener('pointerup',function(e){active=false;try{rail.releasePointerCapture(e.pointerId);}catch(_){} e.preventDefault();});
+    rail.addEventListener('pointercancel',function(){active=false;});
+  }
+  function bindStageGesture(){
+    const stage=byId('editStage');
+    if(!stage || stage.dataset.v18Bound==='1') return;
+    stage.dataset.v18Bound='1';
+    const pts=new Map();
+    let mode='', startX=0,startY=0,baseX=0,baseY=0,startDist=1,startSize=48,startCX=0,startCY=0,moved=false;
+    function dist(){const a=Array.from(pts.values()); if(a.length<2)return 1; return Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)||1;}
+    function center(){const a=Array.from(pts.values()); if(a.length<2)return a[0]||{x:0,y:0}; return {x:(a[0].x+a[1].x)/2,y:(a[0].y+a[1].y)/2};}
+    stage.addEventListener('pointerdown',function(e){
+      if(e.target.closest && e.target.closest('#editPanel,#editSizeRail,#editTop')) return;
+      pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      if(pts.size===1){ mode='drag'; moved=false; startX=e.clientX; startY=e.clientY; baseX=posX; baseY=posY; }
+      if(pts.size===2){ const c=center(); mode='pinch'; moved=true; startDist=dist(); startSize=getEditSize(); startCX=c.x; startCY=c.y; baseX=posX; baseY=posY; editFocusInput(); }
+      try{stage.setPointerCapture(e.pointerId);}catch(_){}
+      e.preventDefault();
+    },{passive:false});
+    stage.addEventListener('pointermove',function(e){
+      if(!pts.has(e.pointerId)) return;
+      pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      if(mode==='drag' && pts.size===1){ if(Math.abs(e.clientX-startX)>6||Math.abs(e.clientY-startY)>6) moved=true; posX=Math.round(baseX+(e.clientX-startX)/(autoScale||1)); posY=Math.round(baseY+(e.clientY-startY)/(autoScale||1)); renderLite(); }
+      if(mode==='pinch' && pts.size>=2){ const c=center(); const ratio=dist()/startDist; setEditSize(startSize*ratio,true); posX=Math.round(baseX+(c.x-startCX)/(autoScale||1)); posY=Math.round(baseY+(c.y-startCY)/(autoScale||1)); renderLite(); }
+      e.preventDefault();
+    },{passive:false});
+    function up(e){ pts.delete(e.pointerId); if(pts.size===0){ if(mode==='drag' && !moved){ editFocusInput(); } mode=''; } else if(pts.size===1){ const p=Array.from(pts.values())[0]; mode='drag'; moved=false; startX=p.x; startY=p.y; baseX=posX; baseY=posY; } }
+    stage.addEventListener('pointerup',up); stage.addEventListener('pointercancel',up);
+  }
+  function fit(){ layoutEditOverlay(); }
+  bindInput(); bindSizeRail(); bindStageGesture();
+  window.addEventListener('resize',fit);
+  if(window.visualViewport){ window.visualViewport.addEventListener('resize',fit); window.visualViewport.addEventListener('scroll',fit); }
+  window.__v18CleanEditorReady=true;
+})();
+</script>
+
+<!-- v19：IG 版面壓縮 + 自製可視游標修正。此區塊故意放在真正 body 結尾前，避免污染 exportPNG() 的 document.write。 -->
+<style id="v19-ig-layout-caret-fix">
+#editOverlay.show #editTop{grid-template-columns:58px minmax(0,1fr) 84px!important;padding:calc(8px + env(safe-area-inset-top,0px)) 18px 6px!important;min-height:70px!important;}
+#editOverlay.show .editClose{width:52px!important;height:52px!important;font-size:34px!important;}
+#editOverlay.show .editTitle{font-size:17px!important;padding:9px 16px!important;max-width:62vw!important;}
+#editOverlay.show #editDone{padding:12px 16px!important;font-size:17px!important;}
+#editOverlay.show #editStage{flex:1 1 auto!important;min-height:0!important;overflow:hidden!important;}
+#editOverlay.show #editPreview{padding:4px 8px 2px!important;}
+#editOverlay.show #editPreview #canvasWrap{border-radius:18px!important;}
+#editOverlay.show #editPanel{flex:0 0 auto!important;padding:0 12px calc(4px + env(safe-area-inset-bottom,0px))!important;max-height:112px!important;}
+#editOverlay.show #editFontRow{padding:2px 0 6px!important;gap:8px!important;}
+#editOverlay.show .ef-btn{min-width:92px!important;padding:9px 12px!important;border-radius:12px!important;font-size:14.5px!important;line-height:1.1!important;}
+#editOverlay.show #editToolbar{height:50px!important;min-height:50px!important;margin:0!important;padding:5px 6px!important;border-radius:16px!important;gap:6px!important;}
+#editOverlay.show .et-btn{height:40px!important;min-width:44px!important;padding:0 8px!important;border-radius:12px!important;font-size:22px!important;}
+#editOverlay.show .et-btn.wide{min-width:62px!important;font-size:13.5px!important;}
+#editOverlay.show #editColorDot{width:28px!important;height:28px!important;}
+#editOverlay.show #editColorPanel{position:fixed!important;left:12px!important;right:12px!important;bottom:calc(106px + env(safe-area-inset-bottom,0px))!important;z-index:60!important;max-height:42vh!important;overflow:auto!important;}
+#editOverlay.show #editSizeRail{left:18px!important;top:18%!important;bottom:22%!important;width:42px!important;}
+#editOverlay.show #editSizeRail .editRailTrack{width:8px!important;}
+#editOverlay.show #editRailThumb{width:42px!important;height:42px!important;}
+.v19-caret{display:inline-block!important;width:3px!important;height:1.02em!important;min-height:22px!important;margin-left:.13em!important;vertical-align:-.16em!important;border-radius:3px!important;background:#4dd0ff!important;box-shadow:0 0 8px rgba(77,208,255,.95),0 0 18px rgba(77,208,255,.45)!important;animation:v19CaretBlink 1s steps(2,start) infinite!important;}
+#text-block.v18-lite-editing .v18-lite-line.is-placeholder .v19-caret{opacity:1!important;}
+@keyframes v19CaretBlink{0%,48%{opacity:1}49%,100%{opacity:.18}}
+#text-block.v18-lite-editing{max-width:82%!important;max-height:54%!important;overflow:visible!important;}
+</style>
+<style id="v20-ig-look">
+/* ===== 背景：接近純黑（更像 IG），僅保留極淡品牌光暈 ===== */
+#editOverlay.show{background:radial-gradient(circle at 50% -8%,rgba(255,106,0,.06),rgba(0,0,0,0) 30%),#000!important;}
+/* ===== 頂列：純白「完成」、隱藏標題、淡化關閉鈕（更貼近 IG）===== */
+#editOverlay.show #editTop{grid-template-columns:46px 1fr auto!important;padding:calc(10px + env(safe-area-inset-top,0px)) 14px 6px!important;min-height:60px!important;}
+#editOverlay.show .editTitle{display:none!important;}
+#editOverlay.show #editDone{background:transparent!important;color:#fff!important;box-shadow:none!important;border-radius:8px!important;font-weight:700!important;font-size:18px!important;padding:8px 4px!important;letter-spacing:.02em!important;}
+#editOverlay.show #editDone:active{opacity:.5!important;}
+#editOverlay.show .editClose{width:40px!important;height:40px!important;border:0!important;background:transparent!important;color:rgba(255,255,255,.82)!important;font-size:30px!important;}
+#editOverlay.show .editClose:active{opacity:.5!important;}
+
+/* ===== 字型膠囊列：IG 風圓角藥丸 ===== */
+#editOverlay.show #editFontRow{gap:9px!important;padding:2px 2px 9px!important;}
+#editOverlay.show .ef-btn{min-width:auto!important;padding:9px 18px!important;border-radius:999px!important;border:0!important;background:rgba(255,255,255,.12)!important;color:#fff!important;font-size:15px!important;font-weight:800!important;}
+#editOverlay.show .ef-btn.on{background:#fff!important;color:#111!important;}
+
+/* ===== 工具列：IG icon 風（等寬均分）===== */
+#editOverlay.show #editToolbar{height:56px!important;min-height:56px!important;border-radius:18px!important;background:rgba(20,20,22,.92)!important;border:1px solid rgba(255,255,255,.08)!important;box-shadow:0 10px 30px rgba(0,0,0,.4)!important;gap:2px!important;padding:6px!important;justify-content:space-between!important;}
+#editOverlay.show .et-btn{flex:1 1 0!important;height:44px!important;min-width:0!important;width:auto!important;padding:0!important;border-radius:13px!important;background:transparent!important;color:#fff!important;font-size:21px!important;}
+#editOverlay.show .et-btn.on,#editOverlay.show .et-btn:active{background:rgba(255,255,255,.18)!important;}
+#editOverlay.show #etKeyboard{font-weight:800!important;}
+.et-ico svg{width:26px!important;height:26px!important;display:block!important;}
+/* 直書／橫書切換鈕：上方 icon ＋ 下方文字，依狀態只顯示其中一組（!important 蓋掉上面那條造成兩個 icon 疊在一起的規則）*/
+#etDir.et-dir{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:1px!important;line-height:1!important;}
+#etDir.et-dir svg{width:19px!important;height:19px!important;}
+#etDir .et-dir-label{font-size:10px!important;font-weight:800!important;letter-spacing:.04em!important;}
+#etDir .ic-v,#etDir .lab-v{display:none!important;}
+#etDir .ic-h,#etDir .lab-h{display:block!important;}
+#etDir.et-vmode .ic-h,#etDir.et-vmode .lab-h{display:none!important;}
+#etDir.et-vmode .ic-v,#etDir.et-vmode .lab-v{display:block!important;}
+#editOverlay.show #editColorDot{width:26px!important;height:26px!important;box-shadow:0 0 0 3px rgba(255,255,255,.14)!important;}
+</style>
+<script id="v19-ig-layout-caret-fix-script">
+(function(){
+  function v19Clamp(v,min,max){return Math.max(min,Math.min(max,v));}
+  function v19GetVisibleColor(){try{if(typeof getEditVisibleColor==='function')return getEditVisibleColor();}catch(e){}return '#ff6a00';}
+  function v19GetEditSize(){try{if(typeof getEditSize==='function')return getEditSize();}catch(e){}var el=document.getElementById('szSlider');var n=el?parseInt(el.value,10):56;return v19Clamp(Number.isFinite(n)?n:56,12,180);}
+  function v19TextValue(tempText){if(typeof tempText==='string')return tempText;var input=document.getElementById('editInput');if(input&&typeof input.value==='string')return input.value;if(typeof lines!=='undefined'&&lines&&lines.join)return lines.join('\n');return '';}
+  function v19SyncLinesFromValue(value){if(typeof lines==='undefined')return;var arr=String(value||'').replace(/\r/g,'').split('\n');arr=arr.slice(0,6).map(function(s){return Array.from(s).slice(0,25).join('');});if(arr.length===0)arr=[''];lines=arr;try{if(typeof offsets!=='undefined'){while(offsets.length<lines.length)offsets.push(0);offsets.length=lines.length;}}catch(e){}}
+  window.renderLite=function(tempText){
+    /* v30：編輯模式已關閉就不准執行。否則按完成後收鍵盤觸發的 resize 會在 40ms 後
+       呼叫 renderLite，把剛畫好的果凍 SVG 蓋回扁平預覽字（這就是「字體反白／變回原樣」的真因）。 */
+    if(typeof editOpen!=='undefined' && !editOpen) return;
+    var block=document.getElementById('text-block');if(!block)return;
+    var source=v19TextValue(tempText);v19SyncLinesFromValue(source);
+    var arr=String(source||'').replace(/\r/g,'').split('\n').slice(0,6);if(arr.length===0)arr=[''];
+    var hasText=arr.join('').length>0;if(!hasText)arr=['輸入文字'];
+    block.innerHTML='';block.classList.add('v18-lite-editing');block.classList.toggle('horizontal',typeof textDirection==='undefined'||textDirection==='h');block.classList.toggle('lite-vmode',typeof textDirection!=='undefined'&&textDirection==='v');
+    block.style.fontFamily=(typeof curFont==='string'&&curFont)?curFont:"-apple-system, BlinkMacSystemFont, 'PingFang TC', sans-serif";
+    block.style.fontSize=v19GetEditSize()+'px';block.style.color=v19GetVisibleColor();
+    var scale=(typeof autoScale==='number'&&autoScale>0)?autoScale:1;var x=(typeof posX==='number')?posX:0;var y=(typeof posY==='number')?posY:0;
+    block.style.transform='translate('+x+'px,'+y+'px) scale('+scale+')';
+    var horizontal=(typeof textDirection==='undefined'||textDirection==='h');var renderArr=arr; /* v30：直書欄序改由 CSS writing-mode 處理，不再手動反轉行序 */
+    var caretIdx=renderArr.length-1; /* 游標固定放最後一行（最後輸入處）*/
+    var vmode=(typeof textDirection!=='undefined'&&textDirection==='v');
+    for(var i=0;i<renderArr.length;i++){
+      var line=document.createElement('div');line.className='v18-lite-line';
+      if(!hasText)line.classList.add('is-placeholder');
+      if(vmode){
+        var chs=Array.from(renderArr[i]||'');if(chs.length===0)chs=[''];
+        for(var c=0;c<chs.length;c++){var vc=document.createElement('span');vc.className='lite-vchar';vc.textContent=chs[c];line.appendChild(vc);}
+      } else {
+        line.textContent=renderArr[i];
+      }
+      if(i===caretIdx){var caret=document.createElement('span');caret.className='v19-caret';line.appendChild(caret);}
+      block.appendChild(line);
+    }
+    try{if(typeof applyPos==='function')applyPos();}catch(e){}
+  };
+  window.editFocusInput=function(){var input=document.getElementById('editInput');if(!input)return;try{input.focus();}catch(e){}try{var n=input.value.length;input.setSelectionRange(n,n);}catch(e){}setTimeout(function(){try{input.focus();}catch(e){}},0);};
+  function bindV19Input(){var input=document.getElementById('editInput');if(!input||input.dataset.v19Bound==='1')return;input.dataset.v19Bound='1';var sync=function(){if(typeof editOpen!=='undefined'&&!editOpen)return;v19SyncLinesFromValue(input.value);window.renderLite(input.value);};['input','change','compositionstart','compositionupdate','compositionend','keyup','keydown'].forEach(function(ev){input.addEventListener(ev,function(){setTimeout(sync,0);},false);});}
+  var oldLayout=window.layoutEditOverlay;
+  window.layoutEditOverlay=function(){if(typeof oldLayout==='function'){try{oldLayout();}catch(e){}}var ov=document.getElementById('editOverlay');if(!ov||(typeof editOpen!=='undefined'&&!editOpen))return;if(window.visualViewport){ov.style.top=(window.visualViewport.offsetTop||0)+'px';ov.style.height=(window.visualViewport.height||window.innerHeight)+'px';}var panel=document.getElementById('editPanel');if(panel)panel.style.maxHeight='112px';try{if(typeof updateEditSizeRail==='function')updateEditSizeRail();}catch(e){}};
+  bindV19Input();
+  window.addEventListener('resize',function(){setTimeout(function(){try{window.layoutEditOverlay();window.renderLite();}catch(e){}},40);});
+  if(window.visualViewport){window.visualViewport.addEventListener('resize',function(){setTimeout(function(){try{window.layoutEditOverlay();}catch(e){}},40);});window.visualViewport.addEventListener('scroll',function(){setTimeout(function(){try{window.layoutEditOverlay();}catch(e){}},40);});}
+})();
+</script>
+
+<style id="v20-panel-dock-style">
+/* 面板改用 fixed 釘在鍵盤上方，移除高度上限避免工具列被裁掉 */
+#editOverlay.show #editPanel{max-height:none!important;}
+</style>
+<script id="v20-panel-dock">
+/* v20：把功能鍵面板（字型列＋工具列）固定在鍵盤正上方。
+   不再單靠 overlay 高度 + flex（在部分情境下面板會被推到鍵盤後面或被裁掉），
+   改用 visualViewport 算出鍵盤高度後 position:fixed 釘住，並給預覽區預留底部空間。 */
+(function(){
+  function dockPanel(){
+    var ov=document.getElementById('editOverlay');
+    if(!ov || !ov.classList.contains('show')) return;
+    var panel=document.getElementById('editPanel');
+    var stage=document.getElementById('editStage');
+    var cpanel=document.getElementById('editColorPanel');
+    if(!panel) return;
+    /* v21：不再用 innerHeight - vv.height 反推鍵盤高度（在預覽器／WKWebView 會算成 0，
+       面板被釘到 bottom:0 躲在鍵盤後面）。改用 visualViewport 直接把面板底邊貼到可視區底邊，
+       不需要知道鍵盤多高，Safari 分頁／WKWebView／檔案預覽器都通用。 */
+    var v=window.visualViewport;
+    var vTop=v?(v.offsetTop||0):0;
+    var vH=v?v.height:(window.innerHeight||0);
+    var iH=window.innerHeight||vH;
+    var ph=panel.offsetHeight||120;
+    /* 底邊貼可視區底邊 */
+    var top=Math.round(vTop+vH-ph);
+    /* v22 夾限：面板頂端不准低於可視區頂端 + 60，也不准低於可視區底邊（整塊跑出去）。
+       這樣就算 visualViewport 在這個環境回報怪數字，面板至少一定看得見。 */
+    var maxTop=Math.round(vTop+vH-40); /* 至少露 40px */
+    var minTop=Math.round(vTop+60);
+    if(top>maxTop)top=maxTop;
+    if(top<minTop)top=minTop;
+    panel.style.position='fixed';
+    panel.style.left='0';
+    panel.style.right='0';
+    panel.style.bottom='auto';
+    panel.style.top=top+'px';
+    panel.style.zIndex='50';
+    panel.style.maxHeight='none';
+    if(stage){ stage.style.paddingBottom=(ph+10)+'px'; }
+    if(cpanel && cpanel.classList.contains('show')){
+      /* v23：顏色面板的「底邊」貼齊整個面板（字型列＋工具列）的頂端，往上長。
+         用面板實際 rect，不再靠 keyboard 推算，所以不會跳。高度受限可捲動，
+         保證滑桿一定看得到、也絕不蓋住工具列。 */
+      var pr=panel.getBoundingClientRect();
+      var iH2=window.innerHeight||vH;
+      cpanel.style.position='fixed';
+      cpanel.style.left='12px';
+      cpanel.style.right='12px';
+      cpanel.style.top='auto';
+      cpanel.style.bottom=Math.round(iH2-pr.top+8)+'px';
+      cpanel.style.maxHeight=Math.max(160,Math.round(pr.top-vTop-16))+'px';
+      cpanel.style.overflow='auto';
+      cpanel.style.zIndex='55';
+    }
+  }
+  var prev=window.layoutEditOverlay;
+  window.layoutEditOverlay=function(){ if(typeof prev==='function'){try{prev();}catch(e){}} try{dockPanel();}catch(e){} };
+  function kick(){
+    [0,80,180,360].forEach(function(t){ setTimeout(function(){ try{window.layoutEditOverlay();}catch(e){} }, t); });
+  }
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize',kick);
+    window.visualViewport.addEventListener('scroll',kick);
+  }
+  window.addEventListener('resize',kick);
+  var ov=document.getElementById('editOverlay');
+  if(ov && 'MutationObserver' in window){
+    new MutationObserver(function(){ if(ov.classList.contains('show')) kick(); }).observe(ov,{attributes:true,attributeFilter:['class']});
+  }
+  var inp=document.getElementById('editInput');
+  if(inp){ inp.addEventListener('focus',kick); inp.addEventListener('input',function(){setTimeout(dockPanel,0);}); }
+})();
+</script>
+
+<!-- v49 DEBUG：在真實裝置上印出實際 DOM 量測，截圖回傳即可定位問題（之後會移除） -->
+<div id="dbgPanel" onclick="this.style.display='none'"
+  style="position:fixed;top:0;left:0;right:0;z-index:99999;background:rgba(0,0,0,.88);color:#39ff5a;font:11px/1.35 ui-monospace,Menlo,monospace;padding:6px 8px;white-space:pre-wrap;word-break:break-all;max-height:40vh;overflow:auto;border-bottom:1px solid #0a0;">DEBUG…</div>
+<script>
+(function(){
+  function fmt(n){return (typeof n==='number')?n.toFixed(1):String(n);}
+  function dump(){
+    try{
+      var block=document.getElementById('text-block'), canvas=document.getElementById('canvas');
+      if(!block||!canvas) return 'no block/canvas';
+      var cr=canvas.getBoundingClientRect(), br=block.getBoundingClientRect();
+      var chars=[].slice.call(block.querySelectorAll('.jelly-char'));
+      var vL=null,vR=null;
+      var rows=chars.map(function(ch){
+        var r=ch.getBoundingClientRect();
+        var t=(ch.dataset && ch.dataset.ch!=null)?ch.dataset.ch:ch.textContent;
+        if(String(t).replace(/\s/g,'')!==''){ vL=(vL==null)?r.left:Math.min(vL,r.left); vR=(vR==null)?r.right:Math.max(vR,r.right); }
+        var cs=getComputedStyle(ch);
+        var code=t?('u+'+t.charCodeAt(0).toString(16)):'(empty)';
+        return '  '+JSON.stringify(t)+' '+code+' w='+fmt(r.width)+' mr='+cs.marginRight+' ml='+cs.marginLeft;
+      });
+      var cc=(cr.left+cr.right)/2, bc=(br.left+br.right)/2, vc=(vL==null?null:(vL+vR)/2);
+      var bcs=getComputedStyle(block);
+      var linesHex='?';
+      try{ linesHex = lines.map(function(s){return '['+Array.from(String(s)).map(function(c){return c.charCodeAt(0).toString(16);}).join(',')+']';}).join(' '); }catch(e){}
+      var L=[];
+      L.push('=== v51 DEBUG (點一下隱藏) ===');
+      try{ L.push('lines='+JSON.stringify(lines)); }catch(e){ L.push('lines=?'); }
+      L.push('linesHex='+linesHex);
+      try{ L.push('dir='+textDirection+'  scale='+fmt(autoScale)+'  size='+(document.getElementById('szSlider')||{}).value+'  gap='+(document.getElementById('letterGap')||{}).value); }catch(e){}
+      L.push('font='+bcs.fontFamily.slice(0,40));
+      L.push('block disp='+bcs.display+' fd='+bcs.flexDirection+' ai='+bcs.alignItems+' jc='+bcs.justifyContent+' w='+fmt(br.width));
+      L.push('canvasCx='+fmt(cc)+'  blockCx='+fmt(bc)+'  Δblock='+fmt(bc-cc));
+      L.push('VISIBLE inkCx='+(vc==null?'?':fmt(vc))+'   ★Δink='+(vc==null?'?':fmt(vc-cc))+'  (0=置中)');
+      L.push('chars('+chars.length+'):');
+      L.push(rows.join('\n'));
+      return L.join('\n');
+    }catch(e){ return 'dbg err: '+(e&&e.stack||e); }
+  }
+  function upd(){ var p=document.getElementById('dbgPanel'); if(p && p.style.display!=='none'){ p.textContent=dump(); } }
+  window.__dbg=upd;
+  setInterval(upd, 600);
+  setTimeout(upd, 500);
+})();
+</script>
+
 </body>
 </html>
