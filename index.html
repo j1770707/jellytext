@@ -489,7 +489,7 @@ body::after {
 #text-block.horizontal { flex-direction: column; align-items: center; }
 #text-block.horizontal .col { flex-direction: row; align-items: center; }
 .col { display:flex; flex-direction:column; align-items:center; }
-.jelly-char{display:flex;align-items:center;justify-content:center;line-height:1;font-weight:900;cursor:inherit;text-shadow:.055em .055em 0 rgba(0,0,0,.42),.11em .11em 0 rgba(42,24,18,.28),0 -.035em 0 rgba(255,255,255,.32);-webkit-text-stroke:.7px rgba(0,0,0,.22);}
+.jelly-char{display:flex;align-items:center;justify-content:center;line-height:1;font-weight:900;cursor:inherit;text-shadow:.055em .055em 0 rgba(0,0,0,.42),.11em .11em 0 rgba(42,24,18,.28);-webkit-text-stroke:.7px rgba(0,0,0,.22);}
 
 /* ── Position Panel ── */
 .pos-panel {
@@ -925,9 +925,9 @@ input[type=color] {
     <div class="ctrl">
       <label>字體大小</label>
       <div class="rrow">
-        <input type="range" id="szSlider" min="12" max="180" value="48"
+        <input type="range" id="szSlider" min="0" max="180" value="48"
           oninput="this.nextElementSibling.value=this.value;render()">
-        <input class="num-input" id="szVal" type="number" value="48" min="12" max="180"
+        <input class="num-input" id="szVal" type="number" value="48" min="0" max="180"
           onchange="var v=Math.min(Math.max(parseInt(this.value)||12,12),180);this.value=v;document.getElementById('szSlider').value=v;render()" onclick="this.select()">
       </div>
     </div>
@@ -936,10 +936,10 @@ input[type=color] {
     <div class="ctrl">
       <label>透明度</label>
       <div class="rrow">
-        <input type="range" id="alphaSlider" min="40" max="95" value="78"
+        <input type="range" id="alphaSlider" min="0" max="100" value="78"
           oninput="this.nextElementSibling.value=this.value;render()">
-        <input class="num-input" id="alphaVal" type="number" value="78" min="40" max="95" style="min-width:58px;"
-          onchange="var v=Math.min(Math.max(parseInt(this.value)||40,40),95);this.value=v;document.getElementById('alphaSlider').value=v;render()" onclick="this.select()">
+        <input class="num-input" id="alphaVal" type="number" value="78" min="0" max="100" style="min-width:58px;"
+          onchange="var v=Math.min(Math.max(parseInt(this.value)||0,0),100);this.value=v;document.getElementById('alphaSlider').value=v;render()" onclick="this.select()">
       </div>
     </div>
 
@@ -975,10 +975,10 @@ input[type=color] {
     <div class="ctrl">
       <label>厚度層數</label>
       <div class="rrow">
-        <input type="range" id="depthSlider" min="2" max="14" value="7"
+        <input type="range" id="depthSlider" min="0" max="14" value="7"
           oninput="this.nextElementSibling.value=this.value;render()">
-        <input class="num-input" id="depthVal" type="number" value="7" min="2" max="14"
-          onchange="var v=Math.min(Math.max(parseInt(this.value)||2,2),14);this.value=v;document.getElementById('depthSlider').value=v;render()" onclick="this.select()">
+        <input class="num-input" id="depthVal" type="number" value="7" min="0" max="14"
+          onchange="var v=Math.min(Math.max(parseInt(this.value)||0,0),14);this.value=v;document.getElementById('depthSlider').value=v;render()" onclick="this.select()">
       </div>
     </div>
 
@@ -1541,7 +1541,7 @@ async function exportPNG(hiRes) {
     } else if(!exportTransparent && currentBg!=='transparent'){
       ctx.fillStyle=currentBg; ctx.fillRect(0,0,W,H);
     }
-    const expSz=Math.max(12,Math.min(180,parseInt(document.getElementById('szSlider').value,10)||32));
+    const expSz=Math.max(0,Math.min(180,parseInt(document.getElementById('szSlider').value,10)||32));
     const chars=block.querySelectorAll('.jelly-char');
     const promises=[];
     chars.forEach(charDiv=>{
@@ -1553,7 +1553,9 @@ async function exportPNG(hiRes) {
       const dw=rect.width*scale; const dh=rect.height*scale;
       // 顯示是 CSS 文字，匯出時用同款扁平 SVG 重建（高解析很利）
       const holder=document.createElement('div');
-      holder.innerHTML=buildCharSVG(ch, expSz);
+      const expDepth=parseInt(document.getElementById('depthSlider').value,10)||7;
+      const expAlpha=(parseInt(document.getElementById('alphaSlider').value,10)||78)/100;
+      holder.innerHTML=buildCharSVG(ch, expSz, expDepth, expAlpha);
       const svgClone=holder.querySelector('svg'); if(!svgClone) return;
       const defs=document.createElementNS('http://www.w3.org/2000/svg','defs');
       const style=document.createElementNS('http://www.w3.org/2000/svg','style');
@@ -1667,8 +1669,14 @@ function rebuildInputs() {
 function rebuildOffsets() {
   const wrap=document.getElementById('offsetSliders');
   wrap.innerHTML='';
+  /* v54：修正標籤名實不符。applyOffsets 橫書套 marginLeft(左右移)、直書套 marginTop(上下移)，
+     且 i=0 在橫書是「第一行(最上)」、在直書才是「最右欄」。先前一律標「右欄/左欄」「上下」，
+     導致名稱與實際行為相反，使用者覺得「數據跟預覽對不起來」。改成依方向顯示正確字樣。 */
+  const horiz = (textDirection==='h');
   lines.forEach((txt,i)=>{
-    const lbl=i===0?'▶ 右欄':i===lines.length-1?'◀ 左欄':`第${i+1}欄`;
+    let lbl;
+    if(horiz){ lbl = (i===0?'第1行(上)':(i===lines.length-1?`第${lines.length}行(下)`:`第${i+1}行`)) + ' ←→'; }
+    else     { lbl = (i===0?'右欄':(i===lines.length-1?'左欄':`第${i+1}欄`)) + ' ↑↓'; }
     const row=document.createElement('div');
     row.className='offset-row';
     row.innerHTML=`
@@ -1972,11 +1980,14 @@ function setDirection(dir, btn){
   document.getElementById('dirH').classList.toggle('on', dir==='h');
   if(dir==='h'){ block.classList.add('horizontal'); }
   else{ block.classList.remove('horizontal'); }
+  rebuildOffsets();   // v54：方向改變後，各欄/行位移的標籤(行↔欄、←→↔↑↓)要跟著更新
   applyGaps();
   fitToCanvas();
+  recenterInk();
 }
 
 function applyGaps(){
+ try{
   const lg=parseInt(document.getElementById('letterGap').value);
   const cg=parseInt(document.getElementById('colGap').value);
   const block=document.getElementById('text-block');
@@ -2012,13 +2023,14 @@ function applyGaps(){
     }
   }
   applyOffsets();
+ }catch(err){ if(window.__showErr) window.__showErr('applyGaps() 出錯: '+(err&&err.stack?err.stack:err)); }
 }
 
 function render(){
  try{
   let sz=parseInt(document.getElementById('szSlider').value);
   if(!Number.isFinite(sz)) sz=32;
-  sz=Math.max(12,Math.min(180,sz));
+  sz=Math.max(0,Math.min(180,sz));
   const alpha=parseInt(document.getElementById('alphaSlider').value)/100;
   const depth=parseInt(document.getElementById('depthSlider').value);
   const block=document.getElementById('text-block');
@@ -2072,24 +2084,83 @@ function makeChar(ch,sz,alpha,depth){
   div.style.height=H+'px';
   div.style.fontSize=sz+'px';
   div.style.fontFamily=curFont;
-  div.style.color=(typeof getEditVisibleColor==='function')?getEditVisibleColor():'#ff6a00';
+  const base=(typeof getEditVisibleColor==='function')?getEditVisibleColor():'#ff6a00';
+  div.style.color=base;
+  /* v55：厚度層數(depth)與透明度(alpha)原本被 makeChar 收下卻沒用，立體感寫死在 .jelly-char
+     的 CSS → 兩個滑桿都「沒反應」。這裡改成依 depth 疊出多層 text-shadow（每層往右下多偏
+     一點，層數越多越厚），最後再加一層白色高光與描邊；alpha 控制字身本體的不透明度。
+     用 inline style 覆蓋 CSS 的固定 text-shadow，所以滑桿即時生效。 */
+  /* v56：v55 把每層位移設成 sz*0.018（size48 才 0.86px/層、14層僅延伸12px），比原本 CSS
+     的 .11em 還淺，所以「層數變了卻看不出來」。改成：固定的單層步距(夠大)，層數越多側面越長，
+     形成連續的 3D 擠出效果。step 用 sz*0.05（size48≈2.4px/層），depth14≈34px 明顯變厚。 */
+  /* v57：厚度層數最小值改為 0。depth=0 表示「完全平面、無立體側面」，所以不疊任何側面層，
+     只保留頂部高光與描邊。d>=1 時才有除以 d 的漸層計算，避免 depth0 時 k/d 變成除以 0(NaN)。 */
+  /* v60：解決「一片一片階梯感」。先前 層數=depth、步距=sz*0.05(size90→4.5px/層)，
+     層與層間隔太大 → 看得到接縫。改成：depth 決定「總擠出長度」(total)，再用密集的
+     0.6px 子步距把整段填滿，相鄰層永遠 <1px → 肉眼連續、一氣呵成。depth 越大側面越長，
+     但不再是稀疏的大跳格。total 用 sz*0.05*depth，與舊版最大厚度量級一致。 */
+  /* v61：要「實心擠出」而非霧化。霧化來自每層各一個深淺(連續漸層)，30層疊起來像柔霧。
+     改成：整條側面用「同一個實色」(side)填滿 → 看起來是一塊扎實的厚度；最後再單獨壓一條
+     更深的底邊(edge)收尾，做出體積轉折。side 由字身色壓暗而來，與字身同色系、立體更一致。 */
+  const d=Math.max(0,depth|0);
+  const total=sz*0.05*d;
+  const shadows=[];
+  if(total>0){
+    const sub=Math.max(0.6, sz*0.012);
+    const n=Math.max(1, Math.ceil(total/sub));
+    // 側面實色：取字身色壓暗到約 55%，整條側面同一色（實心感）
+    const bc=(function(){const m=/rgb\((\d+),\s*(\d+),\s*(\d+)\)/.exec(base)||/#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(base);
+      if(!m) return {r:150,g:65,b:38};
+      return base[0]==='#'?{r:parseInt(m[1],16),g:parseInt(m[2],16),b:parseInt(m[3],16)}:{r:+m[1],g:+m[2],b:+m[3]};})();
+    const sideR=Math.round(bc.r*0.55), sideG=Math.round(bc.g*0.55), sideB=Math.round(bc.b*0.55);
+    const edgeR=Math.round(bc.r*0.30), edgeG=Math.round(bc.g*0.30), edgeB=Math.round(bc.b*0.30);
+    for(let k=1;k<=n;k++){
+      const off=(total*k/n).toFixed(2);
+      // 最後 ~2 層當暗底邊，其餘整條同一實色
+      const isEdge = k>=n-1;
+      const cr=isEdge?edgeR:sideR, cg=isEdge?edgeG:sideG, cb=isEdge?edgeB:sideB;
+      shadows.push(`${off}px ${off}px 0 rgb(${cr},${cg},${cb})`);
+    }
+  }
+  /* v59：移除「頂部白色高光」層（每個字頂端的白邊）。 */
+  div.style.textShadow=shadows.length?shadows.join(','):'none';
+  div.style.webkitTextStroke=(Math.max(0.5,sz*0.012)).toFixed(2)+'px rgba(0,0,0,.22)';
+  div.style.opacity=String(Math.max(0,Math.min(1,alpha)));
   div.textContent=ch;
   return div;
 }
 /* 匯出用：把同一個字做成扁平 SVG（高解析光柵化很利），外觀對齊 CSS 文字的陰影/描邊。
    用 dominant-baseline:central + y=cy 置中，對齊 CSS 的 flex 置中。 */
-function buildCharSVG(ch,sz){
+function buildCharSVG(ch,sz,depth,alpha){
   const safeCh=escapeXml(ch);
   const ff=escapeXml(curFont);
   const pad=sz*0.2,W=sz+pad*2,H=sz*1.25+pad*2,cx=W/2,cy=H/2;
   const baseFill=(typeof getEditVisibleColor==='function')?getEditVisibleColor():'#ff6a00';
-  const s1=Math.max(1,sz*0.055), s2=Math.max(2,sz*0.11), te=Math.max(0.6,sz*0.035);
+  const d=Math.max(0,(depth==null?7:depth|0));
+  const a=(alpha==null)?1:Math.max(0,Math.min(1,alpha));
+  /* v61：與 makeChar 對齊——側面用單一實色(side)填滿=實心擠出，最深兩層用更深的 edge 收邊。
+     SVG 由後往前畫：先畫最深層，最後字身在最上。 */
+  const total=sz*0.05*d;
+  let layers='';
+  if(total>0){
+    const bcm=/rgb\((\d+),\s*(\d+),\s*(\d+)\)/.exec(baseFill)||/#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(baseFill);
+    let br0=150,bg0=65,bb0=38;
+    if(bcm){ if(baseFill[0]==='#'){br0=parseInt(bcm[1],16);bg0=parseInt(bcm[2],16);bb0=parseInt(bcm[3],16);} else {br0=+bcm[1];bg0=+bcm[2];bb0=+bcm[3];} }
+    const sideR=Math.round(br0*0.55), sideG=Math.round(bg0*0.55), sideB=Math.round(bb0*0.55);
+    const edgeR=Math.round(br0*0.30), edgeG=Math.round(bg0*0.30), edgeB=Math.round(bb0*0.30);
+    const sub=Math.max(0.6, sz*0.012);
+    const n=Math.max(1, Math.ceil(total/sub));
+    for(let k=n;k>=1;k--){
+      const off=(total*k/n).toFixed(2);
+      const isEdge=k>=n-1;
+      const cr=isEdge?edgeR:sideR, cg=isEdge?edgeG:sideG, cb=isEdge?edgeB:sideB;
+      layers+=`<text x="${cx+(+off)}" y="${cy+(+off)}" text-anchor="middle" dominant-baseline="central" font-family="${ff}" font-size="${sz}px" fill="rgb(${cr},${cg},${cb})">${safeCh}</text>`;
+    }
+  }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" text-rendering="geometricPrecision">
-    <text x="${cx+s2}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-family="${ff}" font-size="${sz}px" fill="rgba(42,24,18,0.28)">${safeCh}</text>
-    <text x="${cx+s1}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-family="${ff}" font-size="${sz}px" fill="rgba(0,0,0,0.42)">${safeCh}</text>
-    <text x="${cx}" y="${cy-te}" text-anchor="middle" dominant-baseline="central" font-family="${ff}" font-size="${sz}px" fill="rgba(255,255,255,0.32)">${safeCh}</text>
-    <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-family="${ff}" font-size="${sz}px" fill="${baseFill}">${safeCh}</text>
-    <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-family="${ff}" font-size="${sz}px" fill="none" stroke="rgba(0,0,0,0.22)" stroke-width="0.7">${safeCh}</text>
+    ${layers}
+    <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-family="${ff}" font-size="${sz}px" fill="${baseFill}" fill-opacity="${a}">${safeCh}</text>
+    <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-family="${ff}" font-size="${sz}px" fill="none" stroke="rgba(0,0,0,0.22)" stroke-width="${Math.max(0.5,sz*0.012).toFixed(2)}">${safeCh}</text>
   </svg>`;
 }
 
@@ -2189,10 +2260,10 @@ function loadState(){
       const nm = document.getElementById(numId); if(nm) nm.value = v;
     };
     setVal('szSlider','szVal', s.sz, 4, 100);
-    setVal('alphaSlider','alphaVal', s.alpha, 40, 95);
+    setVal('alphaSlider','alphaVal', s.alpha, 0, 100);
     setVal('letterGap','lgVal', s.lg, -200, 100);
     setVal('colGap','cgVal', s.cg, -200, 160);
-    setVal('depthSlider','depthVal', s.depth, 2, 14);
+    setVal('depthSlider','depthVal', s.depth, 0, 14);
 
     if(typeof s.bg === 'string') currentBg = s.bg;
     if(s.dir === 'h' || s.dir === 'v') textDirection = s.dir;
@@ -2464,7 +2535,7 @@ window.addEventListener('resize', ()=>{
       const a=[...ptrs.values()];
       const d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)||1;
       let ns=Math.round(pinchStartSize*(d/pinchStartDist));
-      ns=Math.max(12,Math.min(180,ns));
+      ns=Math.max(0,Math.min(180,ns));
       const s=document.getElementById('szSlider'); const n=document.getElementById('szVal');
       if(s) s.value=ns; if(n) n.value=ns;
       /* 同時平移：兩指中心相對起始中心的位移，換算回未縮放座標後加到位置上 */
@@ -2653,10 +2724,10 @@ function clampNum(v,min,max){ return Math.max(min, Math.min(max, v)); }
 function getEditSize(){
   const el=document.getElementById('szSlider');
   const v=el ? parseInt(el.value,10) : 48;
-  return clampNum(Number.isFinite(v)?v:48,12,180);
+  return clampNum(Number.isFinite(v)?v:48,0,180);
 }
 function setEditSize(v, liteOnly){
-  v=clampNum(Math.round(v),12,180);
+  v=clampNum(Math.round(v),0,180);
   const s=document.getElementById('szSlider');
   const n=document.getElementById('szVal');
   if(s) s.value=String(v);
@@ -2851,7 +2922,7 @@ function layoutEditOverlay(){
 .et-btn{position:relative;height:56px;min-width:58px;border:0;border-radius:17px;background:transparent;color:#fff;font-size:28px;font-weight:900;display:grid;place-items:center}.et-btn.on,.et-btn:active{background:rgba(255,255,255,.16)}.et-btn.wide{min-width:96px;font-size:17px}.et-spacer{flex:1}#editColorDot{width:34px;height:34px;border-radius:50%;display:block;background:conic-gradient(red,#ff0,lime,cyan,blue,magenta,red);box-shadow:0 0 0 4px rgba(255,255,255,.12)}
 #editColorPanel{display:none;margin-top:10px;padding:14px;border-radius:22px;background:rgba(17,18,24,.96);border:1px solid rgba(255,255,255,.14);box-shadow:0 16px 42px rgba(0,0,0,.42)}#editColorPanel.show{display:block}.hue-row{display:grid;grid-template-columns:46px 1fr;gap:10px;align-items:center;color:#fff;font-weight:800;margin:8px 0}.grad-slider{width:100%;accent-color:#ff6a00}.ec-sw{width:34px;height:34px;border-radius:50%;border:2px solid transparent}.ec-sw.on{border-color:#fff}#editSwatchRow{display:flex;gap:8px;overflow-x:auto;margin-top:10px}
 #editSizeRail{position:absolute;left:30px;top:22%;bottom:18%;width:54px;display:flex;align-items:center;justify-content:center;z-index:34;touch-action:none}.editRailTrack{position:relative;width:10px;height:100%;border-radius:99px;background:rgba(255,255,255,.34);box-shadow:inset 0 0 0 1px rgba(255,255,255,.22)}#editRailFill{position:absolute;left:0;right:0;bottom:0;border-radius:99px;background:rgba(255,255,255,.92)}#editRailThumb{position:absolute;left:50%;width:48px;height:48px;border-radius:50%;background:#fff;transform:translate(-50%,50%);box-shadow:0 6px 18px rgba(0,0,0,.4)}
-#text-block.v18-lite-editing{display:flex!important;align-items:center;justify-content:center;gap:.16em;max-width:88%!important;max-height:64%!important;line-height:1.12!important;font-weight:900!important;letter-spacing:.04em!important;text-align:center!important;white-space:pre-wrap!important;word-break:break-word!important;text-shadow:.055em .055em 0 rgba(0,0,0,.42),.11em .11em 0 rgba(42,24,18,.28),0 -.035em 0 rgba(255,255,255,.32)!important;-webkit-text-stroke:.7px rgba(0,0,0,.22);will-change:transform;}
+#text-block.v18-lite-editing{display:flex!important;align-items:center;justify-content:center;gap:.16em;max-width:88%!important;max-height:64%!important;line-height:1.12!important;font-weight:900!important;letter-spacing:.04em!important;text-align:center!important;white-space:pre-wrap!important;word-break:break-word!important;text-shadow:.055em .055em 0 rgba(0,0,0,.42),.11em .11em 0 rgba(42,24,18,.28)!important;-webkit-text-stroke:.7px rgba(0,0,0,.22);will-change:transform;}
 #text-block.v18-lite-editing.horizontal{flex-direction:column!important}.v18-lite-line{display:block}.v18-lite-line.is-placeholder{opacity:.35;color:#fff!important;-webkit-text-stroke:0!important;text-shadow:none!important}
 /* v30：直書編輯預覽。不用 writing-mode（iOS WebView 會把它算成水平反向），改用逐字直欄 flex，與成品 render() 排法一致。需同時有 .v18-lite-editing 才生效，完成後 class 被移除就不影響成品。 */
 #text-block.v18-lite-editing.lite-vmode{flex-direction:row-reverse!important;align-items:flex-start!important;justify-content:center!important;writing-mode:horizontal-tb!important;}
@@ -3031,7 +3102,7 @@ body.v18-editing .jelly-char,body.v18-editing .col{animation:none!important;}
 (function(){
   function v19Clamp(v,min,max){return Math.max(min,Math.min(max,v));}
   function v19GetVisibleColor(){try{if(typeof getEditVisibleColor==='function')return getEditVisibleColor();}catch(e){}return '#ff6a00';}
-  function v19GetEditSize(){try{if(typeof getEditSize==='function')return getEditSize();}catch(e){}var el=document.getElementById('szSlider');var n=el?parseInt(el.value,10):56;return v19Clamp(Number.isFinite(n)?n:56,12,180);}
+  function v19GetEditSize(){try{if(typeof getEditSize==='function')return getEditSize();}catch(e){}var el=document.getElementById('szSlider');var n=el?parseInt(el.value,10):56;return v19Clamp(Number.isFinite(n)?n:56,0,180);}
   function v19TextValue(tempText){if(typeof tempText==='string')return tempText;var input=document.getElementById('editInput');if(input&&typeof input.value==='string')return input.value;if(typeof lines!=='undefined'&&lines&&lines.join)return lines.join('\n');return '';}
   function v19SyncLinesFromValue(value){if(typeof lines==='undefined')return;var arr=String(value||'').replace(/\r/g,'').split('\n');arr=arr.slice(0,6).map(function(s){return Array.from(s).slice(0,25).join('');});if(arr.length===0)arr=[''];lines=arr;try{if(typeof offsets!=='undefined'){while(offsets.length<lines.length)offsets.push(0);offsets.length=lines.length;}}catch(e){}}
   window.renderLite=function(tempText){
@@ -3146,52 +3217,6 @@ body.v18-editing .jelly-char,body.v18-editing .col{animation:none!important;}
   }
   var inp=document.getElementById('editInput');
   if(inp){ inp.addEventListener('focus',kick); inp.addEventListener('input',function(){setTimeout(dockPanel,0);}); }
-})();
-</script>
-
-<!-- v49 DEBUG：在真實裝置上印出實際 DOM 量測，截圖回傳即可定位問題（之後會移除） -->
-<div id="dbgPanel" onclick="this.style.display='none'"
-  style="position:fixed;top:0;left:0;right:0;z-index:99999;background:rgba(0,0,0,.88);color:#39ff5a;font:11px/1.35 ui-monospace,Menlo,monospace;padding:6px 8px;white-space:pre-wrap;word-break:break-all;max-height:40vh;overflow:auto;border-bottom:1px solid #0a0;">DEBUG…</div>
-<script>
-(function(){
-  function fmt(n){return (typeof n==='number')?n.toFixed(1):String(n);}
-  function dump(){
-    try{
-      var block=document.getElementById('text-block'), canvas=document.getElementById('canvas');
-      if(!block||!canvas) return 'no block/canvas';
-      var cr=canvas.getBoundingClientRect(), br=block.getBoundingClientRect();
-      var chars=[].slice.call(block.querySelectorAll('.jelly-char'));
-      var vL=null,vR=null;
-      var rows=chars.map(function(ch){
-        var r=ch.getBoundingClientRect();
-        var t=(ch.dataset && ch.dataset.ch!=null)?ch.dataset.ch:ch.textContent;
-        if(String(t).replace(/\s/g,'')!==''){ vL=(vL==null)?r.left:Math.min(vL,r.left); vR=(vR==null)?r.right:Math.max(vR,r.right); }
-        var cs=getComputedStyle(ch);
-        var code=t?('u+'+t.charCodeAt(0).toString(16)):'(empty)';
-        return '  '+JSON.stringify(t)+' '+code+' w='+fmt(r.width)+' mr='+cs.marginRight+' ml='+cs.marginLeft;
-      });
-      var cc=(cr.left+cr.right)/2, bc=(br.left+br.right)/2, vc=(vL==null?null:(vL+vR)/2);
-      var bcs=getComputedStyle(block);
-      var linesHex='?';
-      try{ linesHex = lines.map(function(s){return '['+Array.from(String(s)).map(function(c){return c.charCodeAt(0).toString(16);}).join(',')+']';}).join(' '); }catch(e){}
-      var L=[];
-      L.push('=== v51 DEBUG (點一下隱藏) ===');
-      try{ L.push('lines='+JSON.stringify(lines)); }catch(e){ L.push('lines=?'); }
-      L.push('linesHex='+linesHex);
-      try{ L.push('dir='+textDirection+'  scale='+fmt(autoScale)+'  size='+(document.getElementById('szSlider')||{}).value+'  gap='+(document.getElementById('letterGap')||{}).value); }catch(e){}
-      L.push('font='+bcs.fontFamily.slice(0,40));
-      L.push('block disp='+bcs.display+' fd='+bcs.flexDirection+' ai='+bcs.alignItems+' jc='+bcs.justifyContent+' w='+fmt(br.width));
-      L.push('canvasCx='+fmt(cc)+'  blockCx='+fmt(bc)+'  Δblock='+fmt(bc-cc));
-      L.push('VISIBLE inkCx='+(vc==null?'?':fmt(vc))+'   ★Δink='+(vc==null?'?':fmt(vc-cc))+'  (0=置中)');
-      L.push('chars('+chars.length+'):');
-      L.push(rows.join('\n'));
-      return L.join('\n');
-    }catch(e){ return 'dbg err: '+(e&&e.stack||e); }
-  }
-  function upd(){ var p=document.getElementById('dbgPanel'); if(p && p.style.display!=='none'){ p.textContent=dump(); } }
-  window.__dbg=upd;
-  setInterval(upd, 600);
-  setTimeout(upd, 500);
 })();
 </script>
 
