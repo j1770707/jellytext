@@ -1996,10 +1996,21 @@ function applyGaps(){
      而且負 margin 對 flex 容器寬度的影響在 WebKit/Blink 不一致(headless 量到置中、
      iOS 卻偏移)。改成每個字頭尾各放 lg/2：相鄰兩字之間仍是 lg，但整行頭尾留白恆等，
      可見字一定置中——不分正負字距、不分瀏覽器引擎，也不需要對最後一字做特例。 */
-  const half=lg/2;
+  /* v62：字距改用「縮放字框尺寸」實作，不再用負 margin。
+     原本 marginLeft/Right=lg/2，當 lg 為大負值(如 -65)且接近字寬時，字的 margin-box 會縮到趨近 0，
+     WebKit 在這種情況會「翻轉 flex 子元素排列順序」(Blink 不會)→ 你截圖看到字序整個顛倒、
+     而且字距像失效。改成：每個字框的寬(橫)/高(直)= 原尺寸 + lg，下限夾在小正值，字框永不為負，
+     flex 排序在所有引擎都穩定；字仍置中於字框，負字距時自然靠近/重疊，但順序不亂。
+     margin 全歸零，置中改由各字框等寬對稱保證 + recenterInk 補正。 */
+  const charW0 = el => parseFloat(el.dataset.w0);   // 原始字框寬(makeChar 寫入)
+  const charH0 = el => parseFloat(el.dataset.h0);   // 原始字框高
   if(textDirection==='h'){
-    // 橫書：字距=水平間距，左右各半
-    document.querySelectorAll('.jelly-char').forEach(el=>{el.style.marginTop='0';el.style.marginBottom='0';el.style.marginLeft=half+'px';el.style.marginRight=half+'px';});
+    // 橫書：字距 = 調整字框「寬度」
+    document.querySelectorAll('.jelly-char').forEach(el=>{
+      el.style.marginTop='0';el.style.marginBottom='0';el.style.marginLeft='0';el.style.marginRight='0';
+      const w0=charW0(el); el.style.width=Math.max(w0*0.2, w0+lg)+'px';   // 下限=原寬20%，不為負
+      el.style.height=charH0(el)+'px';
+    });
     if(cg>=0){
       block.style.gap=cg+'px';
       block.style.flexWrap='wrap';
@@ -2010,8 +2021,12 @@ function applyGaps(){
       document.querySelectorAll('.col').forEach((c,i)=>{c.style.marginTop=(i===0?0:cg)+'px';c.style.marginLeft='0';});
     }
   }else{
-    // 直書：字距=垂直間距，上下各半
-    document.querySelectorAll('.jelly-char').forEach(el=>{el.style.marginLeft='0';el.style.marginRight='0';el.style.marginTop=half+'px';el.style.marginBottom=half+'px';});
+    // 直書：字距 = 調整字框「高度」
+    document.querySelectorAll('.jelly-char').forEach(el=>{
+      el.style.marginLeft='0';el.style.marginRight='0';el.style.marginTop='0';el.style.marginBottom='0';
+      const h0=charH0(el); el.style.height=Math.max(h0*0.2, h0+lg)+'px';  // 下限=原高20%，不為負
+      el.style.width=charW0(el)+'px';
+    });
     if(cg>=0){
       block.style.gap=cg+'px';
       block.style.flexWrap='wrap';
@@ -2080,8 +2095,12 @@ function makeChar(ch,sz,alpha,depth){
   const div=document.createElement('div');
   div.className='jelly-char';
   div.dataset.ch=ch;
+  div.dataset.w0=W;          // v62：原始字框寬高，applyGaps 依字距在此基礎上加減
+  div.dataset.h0=H;
   div.style.width=W+'px';
   div.style.height=H+'px';
+  div.style.overflow='visible';   // 字框被字距縮小時，字仍完整顯示(往外溢)，不被裁切
+  div.style.flex='0 0 auto';      // 不被 flex 拉伸/壓縮，寬高完全由我們指定
   div.style.fontSize=sz+'px';
   div.style.fontFamily=curFont;
   const base=(typeof getEditVisibleColor==='function')?getEditVisibleColor():'#ff6a00';
