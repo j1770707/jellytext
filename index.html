@@ -339,10 +339,14 @@ body::after {
   display: flex; flex-direction: row;
   align-items: flex-start; justify-content: center;
   flex-wrap: wrap; gap: 8px;
+  will-change: transform;
 }
 /* 拖曳：被拖動時暫停浮動動畫、顯示移動游標 */
 #canvas.dragging .col,
 #canvas.dragging .jelly-char { animation: none !important; }
+/* 方向鍵移動：移動當下暫停果凍動畫，讓 translate 只走 GPU 合成、不重繪含濾鏡的 SVG → 不卡 */
+#text-block.moving .col,
+#text-block.moving .jelly-char { animation: none !important; }
 #text-block.draggable { cursor: grab; touch-action: none; }
 #text-block.draggable:active { cursor: grabbing; }
 #canvas.dragging #text-block { cursor: grabbing; }
@@ -1243,8 +1247,17 @@ function setFont(key, btn) {
 }
 
 // ── Position ──────────────────────────────────────────
-function move(dx,dy) { posX+=dx; posY+=dy; applyPos(); }
-function resetPos() { posX=0; posY=0; applyPos(); }
+function move(dx,dy) { posX+=dx; posY+=dy; pauseAnimDuringMove(); applyPos(); }
+function resetPos() { posX=0; posY=0; pauseAnimDuringMove(); applyPos(); }
+// 方向鍵移動進行中暫停果凍動畫，停手約 0.22s 後自動恢復 → 移動超順、放開照樣會抖
+let _moveAnimTimer=null;
+function pauseAnimDuringMove(){
+  const block=document.getElementById('text-block');
+  if(!block) return;
+  block.classList.add('moving');
+  clearTimeout(_moveAnimTimer);
+  _moveAnimTimer=setTimeout(()=>block.classList.remove('moving'),220);
+}
 function setStep(s,btn) { step=s; document.querySelectorAll('.step-btn').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); persist(); }
 let autoScale = 1; // 自動縮放比例
 let fitEnabled = true; // 是否啟用自動縮放
@@ -1269,7 +1282,7 @@ function applyPos() {
   clampTextPos();
   // v51：減去實測的 inkOffset，使「可見的字」中心落到 posX/posY 指定的位置（=置中時對齊中線）。
   // translate 與螢幕 1:1（不受 scale 影響），inkOffset 也是螢幕 px，所以一次補正即精準、不需迭代。
-  block.style.transform=`translate(${posX-inkOffsetX}px,${posY-inkOffsetY}px) scale(${autoScale})`;
+  block.style.transform=`translate3d(${posX-inkOffsetX}px,${posY-inkOffsetY}px,0) scale(${autoScale})`;
   document.getElementById('posReadout').textContent=`X ${posX} / Y ${posY}`;
   persist();
 }
@@ -2776,7 +2789,7 @@ function renderLite(tempText){
   block.style.fontFamily=curFont;
   block.style.fontSize=getEditSize()+'px';
   block.style.color=getEditVisibleColor();
-  block.style.transform=`translate(${posX}px,${posY}px) scale(${autoScale||1})`;
+  block.style.transform=`translate3d(${posX}px,${posY}px,0) scale(${autoScale||1})`;
   const hasText=arr.join('').length>0;
   if(!hasText) arr=['輸入文字'];
   const renderArr = textDirection==='v' ? arr.slice().reverse() : arr;
