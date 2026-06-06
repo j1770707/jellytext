@@ -3489,5 +3489,54 @@ body.v18-editing .jelly-char,body.v18-editing .col{animation:none!important;}
 })();
 </script>
 
+<!-- DEBUG：診斷「沒有字」。截圖綠列回傳即可定位。之後會移除 -->
+<div id="dbgPanel" onclick="this.style.display='none'"
+  style="position:fixed;top:0;left:0;right:0;z-index:99999;background:rgba(0,0,0,.9);color:#39ff5a;font:11px/1.35 ui-monospace,Menlo,monospace;padding:6px 8px;white-space:pre-wrap;word-break:break-all;max-height:46vh;overflow:auto;border-bottom:1px solid #0a0;">DEBUG…</div>
+<script>
+(function(){
+  function fmt(n){return (typeof n==='number')?(Math.round(n*10)/10):String(n);}
+  function dump(){
+    try{
+      var block=document.getElementById('text-block'), canvas=document.getElementById('canvas');
+      if(!block||!canvas) return 'no block/canvas';
+      var chars=[].slice.call(block.querySelectorAll('.jelly-char'));
+      var L=[];
+      try{ L.push('lines='+JSON.stringify(lines)); }catch(e){ L.push('lines=?('+e.message+')'); }
+      try{ L.push('size='+(document.getElementById('szSlider')||{}).value+'  alpha='+(document.getElementById('alphaSlider')||{}).value+'  gap='+(document.getElementById('letterGap')||{}).value+'  colGap='+(document.getElementById('colGap')||{}).value); }catch(e){}
+      try{ L.push('dir='+(typeof textDirection!=='undefined'?textDirection:'?')+'  autoScale='+(typeof autoScale!=='undefined'?fmt(autoScale):'?')); }catch(e){}
+      L.push('char元素數='+chars.length);
+      if(chars.length){
+        var c=chars[0], r=c.getBoundingClientRect(), cs=getComputedStyle(c);
+        L.push('第1字="'+(c.dataset.ch||c.textContent)+'" rect w='+fmt(r.width)+' h='+fmt(r.height)+' @('+fmt(r.left)+','+fmt(r.top)+')');
+        L.push('  fontSize='+cs.fontSize+'  opacity='+cs.opacity+'  color='+cs.color);
+        L.push('  visibility='+cs.visibility+'  display='+cs.display);
+        L.push('  fontFamily='+cs.fontFamily.slice(0,34));
+        L.push('  styleW='+c.style.width+' w0='+c.dataset.w0);
+        var br=block.getBoundingClientRect(), cr=canvas.getBoundingClientRect();
+        L.push('block @('+fmt(br.left)+','+fmt(br.top)+') w='+fmt(br.width)+' h='+fmt(br.height));
+        L.push('canvas @('+fmt(cr.left)+','+fmt(cr.top)+') w='+fmt(cr.width)+' h='+fmt(cr.height));
+        L.push('block在canvas內? '+ (br.left>=cr.left-5 && br.right<=cr.right+5 && br.top>=cr.top-5 && br.bottom<=cr.bottom+5));
+        L.push('block transform='+ (block.style.transform||getComputedStyle(block).transform).slice(0,46));
+      } else {
+        L.push('★ DOM 裡完全沒有字元 → render 沒產生字（看下方錯誤）');
+      }
+      L.push('lastErr='+(window.__lastRenderErr||'(none)'));
+      return L.join('\n');
+    }catch(e){ return 'dbg err: '+(e&&e.stack||e); }
+  }
+  // 攔截 render 的錯誤
+  try{
+    if(typeof render==='function' && !window.__renderWrapped){
+      window.__renderWrapped=true;
+      var _r=render;
+      window.render=function(){ try{ return _r.apply(this,arguments); }catch(e){ window.__lastRenderErr=(e&&e.message||e); throw e; } };
+    }
+  }catch(e){}
+  window.addEventListener('error',function(ev){ window.__lastRenderErr=(ev.message||'')+' @'+(ev.filename||'').split('/').pop()+':'+ev.lineno; });
+  function upd(){ var p=document.getElementById('dbgPanel'); if(p&&p.style.display!=='none') p.textContent=dump(); }
+  window.__dbg=upd; setInterval(upd,600); setTimeout(upd,500);
+})();
+</script>
+
 </body>
 </html>
