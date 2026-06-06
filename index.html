@@ -965,9 +965,9 @@ input[type=color] {
     <div class="ctrl">
       <label>字體大小</label>
       <div class="rrow">
-        <input type="range" id="szSlider" min="0" max="180" value="48"
+        <input type="range" id="szSlider" min="4" max="180" value="48"
           oninput="this.nextElementSibling.value=this.value;render()">
-        <input class="num-input" id="szVal" type="number" value="48" min="0" max="180"
+        <input class="num-input" id="szVal" type="number" value="48" min="4" max="180"
           onchange="var v=Math.min(Math.max(parseInt(this.value)||12,12),180);this.value=v;document.getElementById('szSlider').value=v;render()" onclick="this.select()">
       </div>
     </div>
@@ -976,10 +976,10 @@ input[type=color] {
     <div class="ctrl">
       <label>透明度</label>
       <div class="rrow">
-        <input type="range" id="alphaSlider" min="0" max="100" value="78"
+        <input type="range" id="alphaSlider" min="5" max="100" value="78"
           oninput="this.nextElementSibling.value=this.value;render()">
-        <input class="num-input" id="alphaVal" type="number" value="78" min="0" max="100" style="min-width:58px;"
-          onchange="var v=Math.min(Math.max(parseInt(this.value)||0,0),100);this.value=v;document.getElementById('alphaSlider').value=v;render()" onclick="this.select()">
+        <input class="num-input" id="alphaVal" type="number" value="78" min="5" max="100" style="min-width:58px;"
+          onchange="var v=Math.min(Math.max(parseInt(this.value)||5,5),100);this.value=v;document.getElementById('alphaSlider').value=v;render()" onclick="this.select()">
       </div>
     </div>
 
@@ -1631,7 +1631,7 @@ async function exportPNG(hiRes) {
     } else if(!exportTransparent && currentBg!=='transparent'){
       ctx.fillStyle=currentBg; ctx.fillRect(0,0,W,H);
     }
-    const expSz=Math.max(0,Math.min(180,parseInt(document.getElementById('szSlider').value,10)||32));
+    const expSz=Math.max(4,Math.min(180,parseInt(document.getElementById('szSlider').value,10)||32));
     const chars=block.querySelectorAll('.jelly-char');
     const promises=[];
     chars.forEach(charDiv=>{
@@ -2172,7 +2172,7 @@ function applyGaps(){
 }
 
 // ── per-line 樣式工具 ──
-function _clampSz(v){ v=parseInt(v,10); if(!Number.isFinite(v)) v=48; return Math.max(0,Math.min(180,v)); }
+function _clampSz(v){ v=parseInt(v,10); if(!Number.isFinite(v)) v=48; return Math.max(4,Math.min(180,v)); }
 function curGlobalStyle(){
   return {
     sz: _clampSz(document.getElementById('szSlider') ? document.getElementById('szSlider').value : 48),
@@ -2511,7 +2511,7 @@ function loadState(){
       const nm = document.getElementById(numId); if(nm) nm.value = v;
     };
     setVal('szSlider','szVal', s.sz, 4, 100);
-    setVal('alphaSlider','alphaVal', s.alpha, 0, 100);
+    setVal('alphaSlider','alphaVal', s.alpha, 5, 100);
     setVal('letterGap','lgVal', s.lg, -200, 100);
     setVal('colGap','cgVal', s.cg, -200, 160);
     setVal('depthSlider','depthVal', s.depth, 0, 14);
@@ -2749,9 +2749,23 @@ window.addEventListener('resize', ()=>{
     el.classList.add('show');
   }
 
+  // v63：找出某螢幕座標下是哪一行的字（用 .col 的 lineIdx）。guideLayer 是 pointer-events:none，
+  // 不會擋住命中測試；按到空白處回傳 null（維持目前選中行，仍可在空白拖曳）。
+  function lineIdxAtPoint(x,y){
+    let el=document.elementFromPoint(x,y);
+    const col = el && el.closest ? el.closest('.col') : null;
+    if(!col) return null;
+    const i=parseInt(col.dataset.lineIdx,10);
+    return Number.isFinite(i)?i:null;
+  }
   function onDown(e){
     if(editOpen) return;
     ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    // v63：第一指按下 → 手指壓在哪一行就選哪一行（之後的移動/雙指縮放/旋轉都作用在那一行）
+    if(ptrs.size===1){
+      const li=lineIdxAtPoint(e.clientX,e.clientY);
+      if(li!=null && li!==selLine){ setSelLine(li); }
+    }
     if(ptrs.size>=2){
       /* 第二指落下 → 雙指縮放。
          關鍵：先放掉第一指的 pointer capture，否則 capture 會把所有 pointer 事件
@@ -2823,9 +2837,31 @@ window.addEventListener('resize', ()=>{
     const s = autoScale || 1;          // 拖動量除以縮放，手感才一致
     let nx = Math.round(baseX + dx/s);
     let ny = Math.round(baseY + dy/s);
-    const st=lineStyles[selLine];      // per-line：拖曳純跟手（不套整塊網格吸附）
-    if(st){ st.lpx=nx; st.lpy=ny; }
-    applyLineTransforms(); updatePosReadout();
+    const st=lineStyles[selLine];
+    if(st){
+      st.lpx=nx; st.lpy=ny;
+      applyLineTransforms();   // 先套用「跟手」位置，才能量到該行目前中心
+      /* v64：把網格吸附接回單指拖曳（之前改 per-line 時被拿掉，導致吸附線拖曳時不亮）。
+         對「被拖那一行的中心」找最近格線；命中(<=SNAP)就微調 lpx/lpy 讓中心吸到格線上，
+         並點亮對應的十字線。平常隱形、只有吸附當下亮。 */
+      hideGuides();
+      const col = block.querySelector('.col[data-line-idx="'+selLine+'"]');
+      if(col){
+        const cvr=canvas.getBoundingClientRect();
+        const cr=col.getBoundingClientRect();
+        const cw=canvas.clientWidth, chh=canvas.clientHeight;
+        let lineCx=(cr.left+cr.right)/2 - cvr.left;   // canvas 盒內 px（canvas 不縮放）
+        let lineCy=(cr.top+cr.bottom)/2 - cvr.top;
+        // 垂直格線通過中心，每 GRID_PX 一條
+        const nVx=Math.round((lineCx-cw/2)/GRID_PX)*GRID_PX + cw/2;
+        if(Math.abs(lineCx-nVx)<=SNAP){ st.lpx = nx + (nVx-lineCx)/s; showGuideAt('v', nVx); }
+        const nHy=Math.round((lineCy-chh/2)/GRID_PX)*GRID_PX + chh/2;
+        if(Math.abs(lineCy-nHy)<=SNAP){ st.lpy = ny + (nHy-lineCy)/s; showGuideAt('h', nHy); }
+        st.lpx=Math.round(st.lpx); st.lpy=Math.round(st.lpy);
+        applyLineTransforms();   // 套用吸附後的最終位置
+      }
+    }
+    updatePosReadout();
     e.preventDefault();
   }
   function onUp(e){
@@ -2993,10 +3029,10 @@ function clampNum(v,min,max){ return Math.max(min, Math.min(max, v)); }
 function getEditSize(){
   const el=document.getElementById('szSlider');
   const v=el ? parseInt(el.value,10) : 48;
-  return clampNum(Number.isFinite(v)?v:48,0,180);
+  return clampNum(Number.isFinite(v)?v:48,4,180);
 }
 function setEditSize(v, liteOnly){
-  v=clampNum(Math.round(v),0,180);
+  v=clampNum(Math.round(v),4,180);
   const s=document.getElementById('szSlider');
   const n=document.getElementById('szVal');
   if(s) s.value=String(v);
@@ -3371,7 +3407,7 @@ body.v18-editing .jelly-char,body.v18-editing .col{animation:none!important;}
 (function(){
   function v19Clamp(v,min,max){return Math.max(min,Math.min(max,v));}
   function v19GetVisibleColor(){try{if(typeof getEditVisibleColor==='function')return getEditVisibleColor();}catch(e){}return '#ff6a00';}
-  function v19GetEditSize(){try{if(typeof getEditSize==='function')return getEditSize();}catch(e){}var el=document.getElementById('szSlider');var n=el?parseInt(el.value,10):56;return v19Clamp(Number.isFinite(n)?n:56,0,180);}
+  function v19GetEditSize(){try{if(typeof getEditSize==='function')return getEditSize();}catch(e){}var el=document.getElementById('szSlider');var n=el?parseInt(el.value,10):56;return v19Clamp(Number.isFinite(n)?n:56,4,180);}
   function v19TextValue(tempText){if(typeof tempText==='string')return tempText;var input=document.getElementById('editInput');if(input&&typeof input.value==='string')return input.value;if(typeof lines!=='undefined'&&lines&&lines.join)return lines.join('\n');return '';}
   function v19SyncLinesFromValue(value){if(typeof lines==='undefined')return;var arr=String(value||'').replace(/\r/g,'').split('\n');arr=arr.slice(0,6).map(function(s){return Array.from(s).slice(0,25).join('');});if(arr.length===0)arr=[''];lines=arr;try{if(typeof offsets!=='undefined'){while(offsets.length<lines.length)offsets.push(0);offsets.length=lines.length;}}catch(e){}}
   window.renderLite=function(tempText){
@@ -3486,55 +3522,6 @@ body.v18-editing .jelly-char,body.v18-editing .col{animation:none!important;}
   }
   var inp=document.getElementById('editInput');
   if(inp){ inp.addEventListener('focus',kick); inp.addEventListener('input',function(){setTimeout(dockPanel,0);}); }
-})();
-</script>
-
-<!-- DEBUG：診斷「沒有字」。截圖綠列回傳即可定位。之後會移除 -->
-<div id="dbgPanel" onclick="this.style.display='none'"
-  style="position:fixed;top:0;left:0;right:0;z-index:99999;background:rgba(0,0,0,.9);color:#39ff5a;font:11px/1.35 ui-monospace,Menlo,monospace;padding:6px 8px;white-space:pre-wrap;word-break:break-all;max-height:46vh;overflow:auto;border-bottom:1px solid #0a0;">DEBUG…</div>
-<script>
-(function(){
-  function fmt(n){return (typeof n==='number')?(Math.round(n*10)/10):String(n);}
-  function dump(){
-    try{
-      var block=document.getElementById('text-block'), canvas=document.getElementById('canvas');
-      if(!block||!canvas) return 'no block/canvas';
-      var chars=[].slice.call(block.querySelectorAll('.jelly-char'));
-      var L=[];
-      try{ L.push('lines='+JSON.stringify(lines)); }catch(e){ L.push('lines=?('+e.message+')'); }
-      try{ L.push('size='+(document.getElementById('szSlider')||{}).value+'  alpha='+(document.getElementById('alphaSlider')||{}).value+'  gap='+(document.getElementById('letterGap')||{}).value+'  colGap='+(document.getElementById('colGap')||{}).value); }catch(e){}
-      try{ L.push('dir='+(typeof textDirection!=='undefined'?textDirection:'?')+'  autoScale='+(typeof autoScale!=='undefined'?fmt(autoScale):'?')); }catch(e){}
-      L.push('char元素數='+chars.length);
-      if(chars.length){
-        var c=chars[0], r=c.getBoundingClientRect(), cs=getComputedStyle(c);
-        L.push('第1字="'+(c.dataset.ch||c.textContent)+'" rect w='+fmt(r.width)+' h='+fmt(r.height)+' @('+fmt(r.left)+','+fmt(r.top)+')');
-        L.push('  fontSize='+cs.fontSize+'  opacity='+cs.opacity+'  color='+cs.color);
-        L.push('  visibility='+cs.visibility+'  display='+cs.display);
-        L.push('  fontFamily='+cs.fontFamily.slice(0,34));
-        L.push('  styleW='+c.style.width+' w0='+c.dataset.w0);
-        var br=block.getBoundingClientRect(), cr=canvas.getBoundingClientRect();
-        L.push('block @('+fmt(br.left)+','+fmt(br.top)+') w='+fmt(br.width)+' h='+fmt(br.height));
-        L.push('canvas @('+fmt(cr.left)+','+fmt(cr.top)+') w='+fmt(cr.width)+' h='+fmt(cr.height));
-        L.push('block在canvas內? '+ (br.left>=cr.left-5 && br.right<=cr.right+5 && br.top>=cr.top-5 && br.bottom<=cr.bottom+5));
-        L.push('block transform='+ (block.style.transform||getComputedStyle(block).transform).slice(0,46));
-      } else {
-        L.push('★ DOM 裡完全沒有字元 → render 沒產生字（看下方錯誤）');
-      }
-      L.push('lastErr='+(window.__lastRenderErr||'(none)'));
-      return L.join('\n');
-    }catch(e){ return 'dbg err: '+(e&&e.stack||e); }
-  }
-  // 攔截 render 的錯誤
-  try{
-    if(typeof render==='function' && !window.__renderWrapped){
-      window.__renderWrapped=true;
-      var _r=render;
-      window.render=function(){ try{ return _r.apply(this,arguments); }catch(e){ window.__lastRenderErr=(e&&e.message||e); throw e; } };
-    }
-  }catch(e){}
-  window.addEventListener('error',function(ev){ window.__lastRenderErr=(ev.message||'')+' @'+(ev.filename||'').split('/').pop()+':'+ev.lineno; });
-  function upd(){ var p=document.getElementById('dbgPanel'); if(p&&p.style.display!=='none') p.textContent=dump(); }
-  window.__dbg=upd; setInterval(upd,600); setTimeout(upd,500);
 })();
 </script>
 
