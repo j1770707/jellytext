@@ -339,14 +339,10 @@ body::after {
   display: flex; flex-direction: row;
   align-items: flex-start; justify-content: center;
   flex-wrap: wrap; gap: 8px;
-  will-change: transform;
 }
 /* 拖曳：被拖動時暫停浮動動畫、顯示移動游標 */
 #canvas.dragging .col,
 #canvas.dragging .jelly-char { animation: none !important; }
-/* 方向鍵移動：移動當下暫停果凍動畫，讓 translate 只走 GPU 合成、不重繪含濾鏡的 SVG → 不卡 */
-#text-block.moving .col,
-#text-block.moving .jelly-char { animation: none !important; }
 #text-block.draggable { cursor: grab; touch-action: none; }
 #text-block.draggable:active { cursor: grabbing; }
 #canvas.dragging #text-block { cursor: grabbing; }
@@ -492,7 +488,7 @@ body::after {
 /* 橫書模式 */
 #text-block.horizontal { flex-direction: column; align-items: center; }
 #text-block.horizontal .col { flex-direction: row; align-items: center; }
-.col { display:flex; flex-direction:column; align-items:center; }
+.col { display:flex; flex-direction:column; align-items:center; transform-origin:center center; will-change:transform; }
 .jelly-char{display:flex;align-items:center;justify-content:center;line-height:1;font-weight:900;cursor:inherit;text-shadow:.055em .055em 0 rgba(0,0,0,.42),.11em .11em 0 rgba(42,24,18,.28);-webkit-text-stroke:.7px rgba(0,0,0,.22);}
 
 /* ── Position Panel ── */
@@ -607,7 +603,11 @@ input[type=range] {
 
 /* ── Text inputs ── */
 .text-inputs { display:flex; flex-direction:column; gap:8px; }
-.line-wrap { display:flex; gap:6px; align-items:center; }
+.line-wrap { display:flex; gap:6px; align-items:center; padding:6px; border-radius:12px; border:1px solid transparent; transition:background .15s,border-color .15s; cursor:pointer; }
+/* 選中的行：右側字級/字型/顏色控制都作用在這行 */
+.line-wrap.sel-line { background:var(--accent2); border-color:rgba(232,101,30,0.45); }
+.line-color-dot { width:16px; height:16px; border-radius:50%; flex-shrink:0; border:2px solid rgba(255,255,255,0.35); box-shadow:0 1px 3px rgba(0,0,0,0.3); }
+.line-wrap.sel-line .line-color-dot { border-color:#fff; }
 .line-lbl { font-size:11px; color:rgba(255,255,255,0.3); min-width:28px; }
 .line-input {
   flex: 1;
@@ -883,13 +883,48 @@ input[type=color] {
     <!-- 位置控制（v38：移除步進與方向鍵，保留數據與排版切換；位置改由預覽區拖曳／吸附操作） -->
     <div class="pos-panel">
       <div class="pos-panel-top">
-        <span class="pos-title">位置控制</span>
-        <span class="pos-readout" id="posReadout">X 0 / Y 0</span>
+        <span class="pos-title">位置控制（作用在選中行）</span>
+        <span class="pos-readout" id="posReadout">第1行  X 0 / Y 0</span>
       </div>
       <div class="step-row">
         <span class="step-label">排版</span>
         <button class="step-btn on" id="dirV" onclick="setDirection('v',this)">直書</button>
         <button class="step-btn" id="dirH" onclick="setDirection('h',this)">橫書</button>
+      </div>
+      <!-- 選中行：上下左右移動 + 重設 -->
+      <div class="pos-grid" style="margin-top:10px;">
+        <div></div>
+        <button class="pos-btn" onclick="move(0,-step)">↑</button>
+        <div></div>
+        <button class="pos-btn" onclick="move(-step,0)">←</button>
+        <button class="pos-btn pos-reset" onclick="resetPos()">重設</button>
+        <button class="pos-btn" onclick="move(step,0)">→</button>
+        <div></div>
+        <button class="pos-btn" onclick="move(0,step)">↓</button>
+        <div></div>
+      </div>
+      <div class="step-row" style="margin-top:10px;">
+        <span class="step-label">步進</span>
+        <button class="step-btn" onclick="setStep(2,this)">2</button>
+        <button class="step-btn on" onclick="setStep(5,this)">5</button>
+        <button class="step-btn" onclick="setStep(10,this)">10</button>
+        <button class="step-btn" onclick="setStep(20,this)">20</button>
+      </div>
+      <!-- 選中行：縮放 -->
+      <div style="margin-top:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <span class="step-label">縮放</span>
+          <input class="num-input" id="lineScaleVal" type="number" min="20" max="400" value="100" onchange="setLineScale(this.value)" onclick="this.select()" style="min-width:54px;">
+        </div>
+        <input type="range" id="lineScale" min="20" max="400" value="100" oninput="setLineScale(this.value)" style="width:100%;">
+      </div>
+      <!-- 選中行：360° 旋轉 -->
+      <div style="margin-top:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <span class="step-label">旋轉（0-360°）</span>
+          <input class="num-input" id="lineRotVal" type="number" min="0" max="360" value="0" onchange="setLineRot(this.value)" onclick="this.select()" style="min-width:54px;">
+        </div>
+        <input type="range" id="lineRot" min="0" max="360" value="0" oninput="setLineRot(this.value)" style="width:100%;">
       </div>
     </div>
   </div>
@@ -919,6 +954,7 @@ input[type=color] {
     <!-- 文字輸入 -->
     <div class="ctrl">
       <label>文字輸入（每行最多25字）</label>
+      <div style="font-size:10px;color:var(--accent-soft);line-height:1.5;margin:-4px 0 8px;">👆 點選一行（亮橘外框）後，下方的字體大小／字型／顏色就只套用在那一行</div>
       <div class="text-inputs" id="textInputs"></div>
       <div class="add-row">
         <button class="add-btn" onclick="addLine()">＋</button>
@@ -1212,6 +1248,11 @@ let posX = 0, posY = 0, step = 5;
 let inkOffsetX = 0, inkOffsetY = 0;
 let curFont = "'Cubic11',sans-serif";
 let curFontKey = 'cubic11';
+// ── 每行各自獨立的字級 / 字型 / 顏色 ──
+// 設計：右側控制永遠代表「目前選中行」。render 開頭把控制值寫回選中行，
+// 再逐行用各自 lineStyles[i] 渲染；切換選中行時把該行設定載回控制 UI。
+let selLine = 0;
+let lineStyles = [];   // 與 lines 同步：每行 { sz, fontKey, font, color }
 
 // ── Font ──────────────────────────────────────────────
 function setFont(key, btn) {
@@ -1247,16 +1288,50 @@ function setFont(key, btn) {
 }
 
 // ── Position ──────────────────────────────────────────
-function move(dx,dy) { posX+=dx; posY+=dy; pauseAnimDuringMove(); applyPos(); }
-function resetPos() { posX=0; posY=0; pauseAnimDuringMove(); applyPos(); }
-// 方向鍵移動進行中暫停果凍動畫，停手約 0.22s 後自動恢復 → 移動超順、放開照樣會抖
-let _moveAnimTimer=null;
-function pauseAnimDuringMove(){
-  const block=document.getElementById('text-block');
-  if(!block) return;
-  block.classList.add('moving');
-  clearTimeout(_moveAnimTimer);
-  _moveAnimTimer=setTimeout(()=>block.classList.remove('moving'),220);
+function move(dx,dy) {
+  ensureLineStyles();
+  const st=lineStyles[selLine]; if(!st) return;
+  st.lpx=(st.lpx||0)+dx; st.lpy=(st.lpy||0)+dy;
+  applyLineTransforms(); updatePosReadout(); persist();
+}
+function resetPos() {
+  ensureLineStyles();
+  const st=lineStyles[selLine]; if(!st) return;
+  st.lpx=0; st.lpy=0; st.lscale=1; st.lrot=0;
+  applyLineTransforms(); updatePosReadout(); syncLineXformControls(); persist();
+}
+function updatePosReadout(){
+  const st=lineStyles[selLine]||{};
+  const ro=document.getElementById('posReadout');
+  if(ro) ro.textContent=`第${selLine+1}行  X ${Math.round(st.lpx||0)} / Y ${Math.round(st.lpy||0)}`;
+}
+// 把選中行的縮放/旋轉載回滑桿 UI
+function syncLineXformControls(){
+  const st=lineStyles[selLine]||{};
+  const ss=document.getElementById('lineScale'), sn=document.getElementById('lineScaleVal');
+  const rs=document.getElementById('lineRot'), rn=document.getElementById('lineRotVal');
+  const sc=(typeof st.lscale==='number'?st.lscale:1);
+  const ro=Math.round(st.lrot||0);
+  if(ss) ss.value=Math.round(sc*100); if(sn) sn.value=Math.round(sc*100);
+  if(rs) rs.value=ro; if(rn) rn.value=ro;
+  updatePosReadout();
+}
+// 縮放/旋轉滑桿 → 作用選中行
+function setLineScale(v){
+  ensureLineStyles();
+  const st=lineStyles[selLine]; if(!st) return;
+  let s=parseInt(v,10); if(!Number.isFinite(s)) s=100; s=Math.max(20,Math.min(400,s));
+  st.lscale=s/100;
+  document.getElementById('lineScale').value=s; document.getElementById('lineScaleVal').value=s;
+  applyLineTransforms(); persist();
+}
+function setLineRot(v){
+  ensureLineStyles();
+  const st=lineStyles[selLine]; if(!st) return;
+  let r=parseInt(v,10); if(!Number.isFinite(r)) r=0; r=((r%360)+360)%360;
+  st.lrot=r;
+  document.getElementById('lineRot').value=r; document.getElementById('lineRotVal').value=r;
+  applyLineTransforms(); persist();
 }
 function setStep(s,btn) { step=s; document.querySelectorAll('.step-btn').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); persist(); }
 let autoScale = 1; // 自動縮放比例
@@ -1282,7 +1357,7 @@ function applyPos() {
   clampTextPos();
   // v51：減去實測的 inkOffset，使「可見的字」中心落到 posX/posY 指定的位置（=置中時對齊中線）。
   // translate 與螢幕 1:1（不受 scale 影響），inkOffset 也是螢幕 px，所以一次補正即精準、不需迭代。
-  block.style.transform=`translate3d(${posX-inkOffsetX}px,${posY-inkOffsetY}px,0) scale(${autoScale})`;
+  block.style.transform=`translate(${posX-inkOffsetX}px,${posY-inkOffsetY}px) scale(${autoScale})`;
   document.getElementById('posReadout').textContent=`X ${posX} / Y ${posY}`;
   persist();
 }
@@ -1292,6 +1367,8 @@ function applyPos() {
 // 拖曳時盒與墨水一起移動、此偏差不變，所以只需每次算圖量一次，拖曳中沿用即可。
 function recenterInk(){
   try{
+    // 有任何行套了 per-line 位置/縮放/旋轉時，整塊置中會被個別行的偏移拉歪 → 不補正
+    if(typeof hasLineTransforms==='function' && hasLineTransforms()){ inkOffsetX=0; inkOffsetY=0; applyPos(); return; }
     const block=document.getElementById('text-block');
     if(!block) return;
     const br=block.getBoundingClientRect();
@@ -1560,15 +1637,29 @@ async function exportPNG(hiRes) {
     chars.forEach(charDiv=>{
       const ch=charDiv.dataset.ch; if(ch==null) return;
       const rect=charDiv.getBoundingClientRect();
-      // 相對於 text-block 左上角，加 padding 偏移
-      const dx=(rect.left - blockRect.left)*scale + pad;
-      const dy=(rect.top  - blockRect.top )*scale + pad;
-      const dw=rect.width*scale; const dh=rect.height*scale;
+      // 每行 per-line 縮放/旋轉
+      const colEl=charDiv.closest ? charDiv.closest('.col') : null;
+      const li=colEl?parseInt(colEl.dataset.lineIdx||0):selLine;
+      const lst=lineStyles[li]||{};
+      const lrot=lst.lrot||0;
+      const lsc=(typeof lst.lscale==='number'?lst.lscale:1);
+      // 中心 = 旋轉後 bbox 中心（含 translate/scale/rotate 的最終螢幕位置；匯出時整塊為 scale(1)）
+      const cxS=(rect.left+rect.right)/2, cyS=(rect.top+rect.bottom)/2;
+      const ccx=(cxS-blockRect.left)*scale + pad;
+      const ccy=(cyS-blockRect.top )*scale + pad;
+      // 未旋轉螢幕尺寸用 offsetWidth/Height（不受 transform 影響）× per-line縮放（整塊匯出時為 100%）
+      const dw=charDiv.offsetWidth * lsc * scale;
+      const dh=charDiv.offsetHeight * lsc * scale;
       // 顯示是 CSS 文字，匯出時用同款扁平 SVG 重建（高解析很利）
       const holder=document.createElement('div');
       const expDepth=parseInt(document.getElementById('depthSlider').value,10)||7;
       const expAlpha=(parseInt(document.getElementById('alphaSlider').value,10)||78)/100;
-      holder.innerHTML=buildCharSVG(ch, expSz, expDepth, expAlpha);
+      // per-line：每字用自己的字級/字型/顏色/厚度（makeChar 已寫進 dataset）
+      const eSz=parseFloat(charDiv.dataset.sz)||expSz;
+      const eFont=charDiv.dataset.font||curFont;
+      const eColor=charDiv.dataset.color||undefined;
+      const eDepth=(charDiv.dataset.depth!=null && charDiv.dataset.depth!=='')?parseInt(charDiv.dataset.depth,10):expDepth;
+      holder.innerHTML=buildCharSVG(ch, eSz, eDepth, expAlpha, eFont, eColor);
       const svgClone=holder.querySelector('svg'); if(!svgClone) return;
       const defs=document.createElementNS('http://www.w3.org/2000/svg','defs');
       const style=document.createElementNS('http://www.w3.org/2000/svg','style');
@@ -1580,7 +1671,14 @@ async function exportPNG(hiRes) {
       const url=URL.createObjectURL(blob);
       const p=new Promise(res=>{
         const img=new Image();
-        img.onload=()=>{ctx.drawImage(img,dx,dy,dw,dh);URL.revokeObjectURL(url);res();};
+        img.onload=()=>{
+          ctx.save();
+          ctx.translate(ccx, ccy);
+          if(lrot) ctx.rotate(lrot*Math.PI/180);
+          ctx.drawImage(img, -dw/2, -dh/2, dw, dh);
+          ctx.restore();
+          URL.revokeObjectURL(url); res();
+        };
         img.onerror=()=>{URL.revokeObjectURL(url);res();};
         img.src=url;
       });
@@ -1632,20 +1730,39 @@ async function exportPNG(hiRes) {
 function addLine() {
   if(lines.length>=6) return;
   lines.push(''); offsets.push(0);
+  ensureLineStyles();          // 補上新行的樣式（沿用目前控制）
+  selLine=lines.length-1;      // 新增後直接選取新行
   rebuildInputs(); rebuildOffsets(); render();
 }
 function removeLine(idx) {
   if(lines.length<=1) return;
   lines.splice(idx,1); offsets.splice(idx,1);
-  rebuildInputs(); rebuildOffsets(); render();
+  if(Array.isArray(lineStyles)) lineStyles.splice(idx,1);
+  if(selLine>=lines.length) selLine=lines.length-1;
+  if(selLine<0) selLine=0;
+  rebuildInputs(); rebuildOffsets(); applyLineToControls(selLine); render();
 }
 function rebuildInputs() {
   const wrap=document.getElementById('textInputs');
   if(!wrap) return;
+  ensureLineStyles();
   wrap.innerHTML='';
   lines.forEach((txt,i)=>{
     const row=document.createElement('div');
     row.className='line-wrap';
+    if(i===selLine) row.classList.add('sel-line');
+    // 點整列即選取該行（讓右側控制作用在這行）
+    row.addEventListener('click', function(e){
+      if(e.target && e.target.classList && (e.target.classList.contains('rm-btn'))) return;
+      setSelLine(i);
+    });
+
+    // 行顏色小圓點（顯示該行目前顏色）
+    const dot=document.createElement('span');
+    dot.className='line-color-dot';
+    dot.title='這一行的顏色';
+    if(lineStyles[i]) dot.style.background=lineStyles[i].color;
+    row.appendChild(dot);
 
     const lbl=document.createElement('span');
     lbl.className='line-lbl';
@@ -1658,6 +1775,7 @@ function rebuildInputs() {
     inp.maxLength=25;
     inp.placeholder='最多25字';
     inp.value=txt || '';
+    inp.addEventListener('focus', function(){ setSelLine(i); });
     inp.addEventListener('input', function(){ updateLine(i, this.value); });
     row.appendChild(inp);
 
@@ -1677,6 +1795,7 @@ function rebuildInputs() {
     }
     wrap.appendChild(row);
   });
+  highlightSelLine();
 }
 
 function rebuildOffsets() {
@@ -2001,27 +2120,25 @@ function setDirection(dir, btn){
 
 function applyGaps(){
  try{
+  ensureLineStyles();
+  lineStyles[selLine]=curGlobalStyle();   // 字距變更也即時寫回選中行
   const lg=parseInt(document.getElementById('letterGap').value);
   const cg=parseInt(document.getElementById('colGap').value);
   const block=document.getElementById('text-block');
-  /* v50：字距「左右各半」實作。先前把整段字距塞在 marginRight，再把最後一個字的
-     margin 歸零來修對稱——但負字距時各字往左疊、唯獨最後一字沒疊，整排就不對稱，
-     而且負 margin 對 flex 容器寬度的影響在 WebKit/Blink 不一致(headless 量到置中、
-     iOS 卻偏移)。改成每個字頭尾各放 lg/2：相鄰兩字之間仍是 lg，但整行頭尾留白恆等，
-     可見字一定置中——不分正負字距、不分瀏覽器引擎，也不需要對最後一字做特例。 */
-  /* v62：字距改用「縮放字框尺寸」實作，不再用負 margin。
-     原本 marginLeft/Right=lg/2，當 lg 為大負值(如 -65)且接近字寬時，字的 margin-box 會縮到趨近 0，
-     WebKit 在這種情況會「翻轉 flex 子元素排列順序」(Blink 不會)→ 你截圖看到字序整個顛倒、
-     而且字距像失效。改成：每個字框的寬(橫)/高(直)= 原尺寸 + lg，下限夾在小正值，字框永不為負，
-     flex 排序在所有引擎都穩定；字仍置中於字框，負字距時自然靠近/重疊，但順序不亂。
-     margin 全歸零，置中改由各字框等寬對稱保證 + recenterInk 補正。 */
+  // 每行各自字距：依該字所屬 .col 的 lineIdx 取 lineStyles[lineIdx].lg
+  const lgOf = el => {
+    const col = el.closest ? el.closest('.col') : null;
+    const li = col ? parseInt(col.dataset.lineIdx||0) : selLine;
+    const st = lineStyles[li];
+    return (st && typeof st.lg==='number') ? st.lg : lg;
+  };
   const charW0 = el => parseFloat(el.dataset.w0);   // 原始字框寬(makeChar 寫入)
   const charH0 = el => parseFloat(el.dataset.h0);   // 原始字框高
   if(textDirection==='h'){
     // 橫書：字距 = 調整字框「寬度」
     document.querySelectorAll('.jelly-char').forEach(el=>{
       el.style.marginTop='0';el.style.marginBottom='0';el.style.marginLeft='0';el.style.marginRight='0';
-      const w0=charW0(el); el.style.width=Math.max(w0*0.2, w0+lg)+'px';   // 下限=原寬20%，不為負
+      const w0=charW0(el); const lgi=lgOf(el); el.style.width=Math.max(w0*0.2, w0+lgi)+'px';
       el.style.height=charH0(el)+'px';
     });
     if(cg>=0){
@@ -2037,7 +2154,7 @@ function applyGaps(){
     // 直書：字距 = 調整字框「高度」
     document.querySelectorAll('.jelly-char').forEach(el=>{
       el.style.marginLeft='0';el.style.marginRight='0';el.style.marginTop='0';el.style.marginBottom='0';
-      const h0=charH0(el); el.style.height=Math.max(h0*0.2, h0+lg)+'px';  // 下限=原高20%，不為負
+      const h0=charH0(el); const lgi=lgOf(el); el.style.height=Math.max(h0*0.2, h0+lgi)+'px';
       el.style.width=charW0(el)+'px';
     });
     if(cg>=0){
@@ -2054,11 +2171,102 @@ function applyGaps(){
  }catch(err){ if(window.__showErr) window.__showErr('applyGaps() 出錯: '+(err&&err.stack?err.stack:err)); }
 }
 
+// ── per-line 樣式工具 ──
+function _clampSz(v){ v=parseInt(v,10); if(!Number.isFinite(v)) v=48; return Math.max(0,Math.min(180,v)); }
+function curGlobalStyle(){
+  return {
+    sz: _clampSz(document.getElementById('szSlider') ? document.getElementById('szSlider').value : 48),
+    fontKey: curFontKey,
+    font: curFont,
+    color: (typeof getEditVisibleColor==='function') ? getEditVisibleColor() : '#ff6a00',
+    lg: parseInt(document.getElementById('letterGap') ? document.getElementById('letterGap').value : 4, 10) || 0,
+    depth: parseInt(document.getElementById('depthSlider') ? document.getElementById('depthSlider').value : 7, 10) || 0
+  };
+}
+function ensureLineStyles(){
+  if(!Array.isArray(lineStyles)) lineStyles=[];
+  while(lineStyles.length < lines.length){ const s=curGlobalStyle(); s.lpx=0;s.lpy=0;s.lscale=1;s.lrot=0; lineStyles.push(s); }
+  if(lineStyles.length > lines.length) lineStyles.length = lines.length;
+  // 補齊缺漏欄位（相容舊存檔，避免 undefined）
+  const g=curGlobalStyle();
+  lineStyles.forEach(st=>{
+    if(!st) return;
+    if(typeof st.sz!=='number') st.sz=g.sz;
+    if(!st.fontKey) st.fontKey=g.fontKey;
+    if(!st.font) st.font=g.font;
+    if(!st.color) st.color=g.color;
+    if(typeof st.lg!=='number') st.lg=g.lg;
+    if(typeof st.depth!=='number') st.depth=g.depth;
+    if(typeof st.lpx!=='number') st.lpx=0;
+    if(typeof st.lpy!=='number') st.lpy=0;
+    if(typeof st.lscale!=='number') st.lscale=1;
+    if(typeof st.lrot!=='number') st.lrot=0;
+  });
+  if(selLine<0) selLine=0;
+  if(selLine>=lines.length) selLine=Math.max(0,lines.length-1);
+}
+// 套用每行各自的位置/縮放/旋轉（疊加在整塊置中之上，不重建 DOM）
+function applyLineTransforms(){
+  document.querySelectorAll('#text-block .col').forEach(col=>{
+    const li=parseInt(col.dataset.lineIdx||0);
+    const st=lineStyles[li]; if(!st) return;
+    const lpx=st.lpx||0, lpy=st.lpy||0, lsc=(typeof st.lscale==='number'?st.lscale:1), lrot=st.lrot||0;
+    col.style.transform=`translate(${lpx}px,${lpy}px) scale(${lsc}) rotate(${lrot}deg)`;
+  });
+}
+// 是否有任何行套了 per-line 位置/縮放/旋轉（用來決定整塊置中是否跳過）
+function hasLineTransforms(){
+  return lineStyles.some(st=>st && ((st.lpx||0)!==0 || (st.lpy||0)!==0 || (st.lrot||0)!==0 || (typeof st.lscale==='number' && st.lscale!==1)));
+}
+// 把某行的設定載回右側控制（字級 / 字型 / 顏色）
+function applyLineToControls(i){
+  ensureLineStyles();
+  const st=lineStyles[i]; if(!st) return;
+  const s=document.getElementById('szSlider'), n=document.getElementById('szVal');
+  if(s) s.value=st.sz; if(n) n.value=st.sz;
+  if(typeof updateEditSizeRail==='function'){ try{updateEditSizeRail();}catch(_){} }
+  curFontKey=st.fontKey; curFont=st.font;
+  document.querySelectorAll('.font-btn').forEach(b=>b.classList.remove('on'));
+  const fb=document.getElementById('fb-'+st.fontKey); if(fb) fb.classList.add('on');
+  // 字距
+  const lgS=document.getElementById('letterGap'), lgN=document.getElementById('lgVal');
+  if(lgS && typeof st.lg==='number') lgS.value=st.lg;
+  if(lgN && typeof st.lg==='number') lgN.value=st.lg;
+  // 厚度
+  const dpS=document.getElementById('depthSlider'), dpN=document.getElementById('depthVal');
+  if(dpS && typeof st.depth==='number') dpS.value=st.depth;
+  if(dpN && typeof st.depth==='number') dpN.value=st.depth;
+  // per-line 顏色存單一可見色，用純色模式呈現
+  colorMode='solid';
+  const sc=document.getElementById('solidColor'); if(sc) sc.value=st.color;
+  // 同步位置/縮放/旋轉面板到這行
+  if(typeof syncLineXformControls==='function') syncLineXformControls();
+}
+// 選取某一行：之後右側控制都作用在這行
+function setSelLine(i){
+  ensureLineStyles();
+  if(i<0||i>=lines.length) return;
+  lineStyles[selLine]=Object.assign({}, lineStyles[selLine]||{}, curGlobalStyle());   // 先存住舊行（保留位置/縮放/旋轉）
+  selLine=i;
+  applyLineToControls(i);
+  highlightSelLine();
+  render();
+  persist();
+}
+function highlightSelLine(){
+  const rows=document.querySelectorAll('#textInputs .line-wrap');
+  rows.forEach((row,idx)=>{
+    row.classList.toggle('sel-line', idx===selLine);
+    const dot=row.querySelector('.line-color-dot');
+    if(dot && lineStyles[idx]) dot.style.background=lineStyles[idx].color;
+  });
+}
+
 function render(){
  try{
-  let sz=parseInt(document.getElementById('szSlider').value);
-  if(!Number.isFinite(sz)) sz=32;
-  sz=Math.max(0,Math.min(180,sz));
+  ensureLineStyles();
+  // 只把「來自右側控制」的欄位寫回選中行，保留它的位置/縮放/旋轉（lpx/lpy/lscale/lrot）
+  lineStyles[selLine]=Object.assign({}, lineStyles[selLine]||{}, curGlobalStyle());
   const alpha=parseInt(document.getElementById('alphaSlider').value)/100;
   const depth=parseInt(document.getElementById('depthSlider').value);
   const block=document.getElementById('text-block');
@@ -2076,12 +2284,13 @@ function render(){
     const lineText = String(txt).trim();
     if(!lineText) return;                 // 整行都是空白 → 不產生空方塊
     const lineIdx=renderIndices[i];
+    const st=lineStyles[lineIdx]||curGlobalStyle();
     const col=document.createElement('div');
     col.className='col';
     col.dataset.lineIdx=lineIdx;
     col.style.animationDelay=(i*0.3)+'s';
     [...lineText].forEach((ch,ci)=>{
-      const div=makeChar(ch,sz,alpha,depth);
+      const div=makeChar(ch,st.sz,alpha,st.depth,st.font,st.color);
       div.style.animationDelay=(ci*0.12)+'s';
       col.appendChild(div);
     });
@@ -2089,6 +2298,7 @@ function render(){
   });
   applyGaps(); applyOffsets(); fitToCanvas();
   recenterInk();            // v51：實測可見墨水偏差並補正 transform（跨引擎置中關鍵）
+  applyLineTransforms();    // 每行各自的位置/縮放/旋轉（疊加在置中之上）
   persist();
  }catch(err){
   if(window.__showErr) window.__showErr('render() 出錯: ' + (err && err.stack ? err.stack : err));
@@ -2103,7 +2313,7 @@ function escapeXml(value){
 /* 顯示用：原生 CSS 文字，與編輯預覽完全同一種渲染 —— 最清晰，且被 transform:scale 縮放時
    iOS 仍會以向量字型清楚重繪，不會像 SVG 圖層那樣糊。字框維持 sz*1.4 × sz*1.65，
    讓排版/間距/匯出定位與原本一致。外觀（陰影＋描邊）由 .jelly-char 的 CSS 提供，和 .v18-lite-editing 一致。 */
-function makeChar(ch,sz,alpha,depth){
+function makeChar(ch,sz,alpha,depth,font,color){
   const pad=sz*0.2,W=sz+pad*2,H=sz*1.25+pad*2;
   const div=document.createElement('div');
   div.className='jelly-char';
@@ -2115,9 +2325,14 @@ function makeChar(ch,sz,alpha,depth){
   div.style.overflow='visible';   // 字框被字距縮小時，字仍完整顯示(往外溢)，不被裁切
   div.style.flex='0 0 auto';      // 不被 flex 拉伸/壓縮，寬高完全由我們指定
   div.style.fontSize=sz+'px';
-  div.style.fontFamily=curFont;
-  const base=(typeof getEditVisibleColor==='function')?getEditVisibleColor():'#ff6a00';
+  div.style.fontFamily=font||curFont;
+  const base=color || ((typeof getEditVisibleColor==='function')?getEditVisibleColor():'#ff6a00');
   div.style.color=base;
+  // per-line：把字級/字型/顏色/厚度記在 dataset，匯出時逐字沿用 → 匯出也 per-line
+  div.dataset.sz=sz;
+  div.dataset.font=font||curFont;
+  div.dataset.color=base;
+  div.dataset.depth=depth;
   /* v55：厚度層數(depth)與透明度(alpha)原本被 makeChar 收下卻沒用，立體感寫死在 .jelly-char
      的 CSS → 兩個滑桿都「沒反應」。這裡改成依 depth 疊出多層 text-shadow（每層往右下多偏
      一點，層數越多越厚），最後再加一層白色高光與描邊；alpha 控制字身本體的不透明度。
@@ -2163,11 +2378,11 @@ function makeChar(ch,sz,alpha,depth){
 }
 /* 匯出用：把同一個字做成扁平 SVG（高解析光柵化很利），外觀對齊 CSS 文字的陰影/描邊。
    用 dominant-baseline:central + y=cy 置中，對齊 CSS 的 flex 置中。 */
-function buildCharSVG(ch,sz,depth,alpha){
+function buildCharSVG(ch,sz,depth,alpha,font,color){
   const safeCh=escapeXml(ch);
-  const ff=escapeXml(curFont);
+  const ff=escapeXml(font||curFont);
   const pad=sz*0.2,W=sz+pad*2,H=sz*1.25+pad*2,cx=W/2,cy=H/2;
-  const baseFill=(typeof getEditVisibleColor==='function')?getEditVisibleColor():'#ff6a00';
+  const baseFill=color || ((typeof getEditVisibleColor==='function')?getEditVisibleColor():'#ff6a00');
   const d=Math.max(0,(depth==null?7:depth|0));
   const a=(alpha==null)?1:Math.max(0,Math.min(1,alpha));
   /* v61：與 makeChar 對齊——側面用單一實色(side)填滿=實心擠出，最深兩層用更深的 edge 收邊。
@@ -2267,7 +2482,8 @@ function _persistNow(){
       solid: document.getElementById('solidColor').value,
       cTop: document.getElementById('customTop').value,
       cMid: document.getElementById('customMid').value,
-      cBot: document.getElementById('customBot').value
+      cBot: document.getElementById('customBot').value,
+      lineStyles, selLine
     };
     localStorage.setItem(STORE_KEY, JSON.stringify(state));
   }catch(e){ /* 無痕模式或被禁用，靜默略過 */ }
@@ -2282,6 +2498,9 @@ function loadState(){
     if(Array.isArray(s.lines) && s.lines.length){ lines = s.lines.slice(0,6); }
     if(Array.isArray(s.offsets)){ offsets = s.offsets.slice(0, lines.length); }
     while(offsets.length < lines.length) offsets.push(0);
+    // per-line 樣式還原
+    if(Array.isArray(s.lineStyles)){ lineStyles = s.lineStyles.slice(0, lines.length).map(o=>o&&typeof o==='object'?o:null).filter(Boolean); }
+    if(typeof s.selLine==='number') selLine = s.selLine;
 
     if(typeof s.fontKey === 'string') curFontKey = s.fontKey;
 
@@ -2412,6 +2631,8 @@ buildStars();
 // ── Init ──────────────────────────────────────────────
 const _restored = loadState();
 syncUIFromState();
+ensureLineStyles();
+applyLineToControls(selLine);
 rebuildInputs();
 rebuildOffsets();
 document.fonts.ready.then(render);
@@ -2459,7 +2680,7 @@ window.addEventListener('resize', ()=>{
   let dragBaseCx=0, dragBaseCy=0;   // 按下瞬間量一次的「無位移基準中心」，全程固定避免回饋抖動
   // v25：雙指縮放狀態（主畫面 canvas 原本只有拖曳，這裡補上 pinch 改字體大小）
   const ptrs=new Map();
-  let pinching=false, pinchStartDist=1, pinchStartSize=48;
+  let pinching=false, pinchStartDist=1, pinchStartSize=48, pinchStartScale=1, pinchStartAngle=0, pinchStartRot=0;
   // v32：雙指同時縮放＋平移。記住捏合開始時兩指中心與當下位置，移動中心就帶著字一起跑。
   let pinchStartCx=0, pinchStartCy=0, pinchBaseX=0, pinchBaseY=0;
 
@@ -2540,9 +2761,13 @@ window.addEventListener('resize', ()=>{
       pinching=true; dragging=false; moved=true;
       const a=[...ptrs.values()];
       pinchStartDist=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)||1;
-      pinchStartSize=parseInt(document.getElementById('szSlider').value)||48;
+      ensureLineStyles();
+      const _ps=lineStyles[selLine]||{};
+      pinchStartScale=(typeof _ps.lscale==='number'?_ps.lscale:1);
+      pinchStartAngle=Math.atan2(a[1].y-a[0].y, a[1].x-a[0].x);   // 兩指連線起始角度
+      pinchStartRot=(_ps.lrot||0);
       pinchStartCx=(a[0].x+a[1].x)/2; pinchStartCy=(a[0].y+a[1].y)/2;
-      pinchBaseX=posX; pinchBaseY=posY;
+      pinchBaseX=_ps.lpx||0; pinchBaseY=_ps.lpy||0;
       canvas.classList.remove('dragging');
       e.preventDefault();
       return;
@@ -2550,7 +2775,9 @@ window.addEventListener('resize', ()=>{
     dragging = true; moved = false;
     pointerId = e.pointerId;
     startX = e.clientX; startY = e.clientY;
-    baseX = posX; baseY = posY;
+    ensureLineStyles();
+    const _ds=lineStyles[selLine]||{};
+    baseX = _ds.lpx||0; baseY = _ds.lpy||0;
     // v46：dragBaseCx/Cy 要的是「posX=0 時的排版中心」。offsetLeft/Top 是版面座標，
     // 本來就不含 transform(translate)，所以直接就是 posX=0 的中心，千萬不能再扣 posX/posY，
     // 否則文字已被移動過(posX≠0)時吸附目標會整個偏掉 → 十字線跑掉、X/Y 不歸零。
@@ -2566,16 +2793,23 @@ window.addEventListener('resize', ()=>{
     if(pinching && ptrs.size>=2){
       const a=[...ptrs.values()];
       const d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)||1;
-      let ns=Math.round(pinchStartSize*(d/pinchStartDist));
-      ns=Math.max(0,Math.min(180,ns));
-      const s=document.getElementById('szSlider'); const n=document.getElementById('szVal');
-      if(s) s.value=ns; if(n) n.value=ns;
-      /* 同時平移：兩指中心相對起始中心的位移，換算回未縮放座標後加到位置上 */
-      const cx=(a[0].x+a[1].x)/2, cy=(a[0].y+a[1].y)/2;
-      const sc=autoScale||1;
-      posX=Math.round(pinchBaseX+(cx-pinchStartCx)/sc);
-      posY=Math.round(pinchBaseY+(cy-pinchStartCy)/sc);
-      render();      // render 內含 applyPos → 會套用新位置並夾在框內
+      let nsc=pinchStartScale*(d/pinchStartDist);
+      nsc=Math.max(0.2,Math.min(4,nsc));
+      const st=lineStyles[selLine];
+      if(st){
+        st.lscale=nsc;
+        // 旋轉：兩指連線角度的變化量，加到該行起始旋轉
+        const ang=Math.atan2(a[1].y-a[0].y, a[1].x-a[0].x);
+        let deg=pinchStartRot + (ang-pinchStartAngle)*180/Math.PI;
+        deg=((deg%360)+360)%360;
+        st.lrot=deg;
+        // 平移：兩指中心位移
+        const cx=(a[0].x+a[1].x)/2, cy=(a[0].y+a[1].y)/2;
+        const sc=autoScale||1;
+        st.lpx=Math.round(pinchBaseX+(cx-pinchStartCx)/sc);
+        st.lpy=Math.round(pinchBaseY+(cy-pinchStartCy)/sc);
+      }
+      applyLineTransforms(); syncLineXformControls();
       e.preventDefault();
       return;
     }
@@ -2589,9 +2823,9 @@ window.addEventListener('resize', ()=>{
     const s = autoScale || 1;          // 拖動量除以縮放，手感才一致
     let nx = Math.round(baseX + dx/s);
     let ny = Math.round(baseY + dy/s);
-    [nx, ny] = snapPos(nx, ny);
-    posX = nx; posY = ny;
-    applyPos();
+    const st=lineStyles[selLine];      // per-line：拖曳純跟手（不套整塊網格吸附）
+    if(st){ st.lpx=nx; st.lpy=ny; }
+    applyLineTransforms(); updatePosReadout();
     e.preventDefault();
   }
   function onUp(e){
@@ -2605,7 +2839,8 @@ window.addEventListener('resize', ()=>{
         const p=[...ptrs.entries()][0];   // [pointerId, {x,y}]
         pointerId=p[0];
         startX=p[1].x; startY=p[1].y;
-        baseX=posX; baseY=posY;
+        const _us=lineStyles[selLine]||{};
+        baseX=_us.lpx||0; baseY=_us.lpy||0;
         dragging=true; moved=true;        // 接續手勢，放開時不觸發進入編輯
         dragBaseCx = block.offsetLeft + block.offsetWidth/2;   // v46：同上，不扣 posX/posY
         dragBaseCy = block.offsetTop + block.offsetHeight/2;
@@ -2615,6 +2850,7 @@ window.addEventListener('resize', ()=>{
       }
       // ptrs.size===0：全放開
       pinching=false; dragging=false; canvas.classList.remove('dragging'); hideGuides();
+      syncLineXformControls(); persist();
       return;
     }
     if(!dragging) return;
@@ -2624,6 +2860,7 @@ window.addEventListener('resize', ()=>{
     if(pointerId!=null && canvas.releasePointerCapture){ try{ canvas.releasePointerCapture(pointerId); }catch(_){} }
     pointerId = null;
     if(!moved){ openEdit(); }   // 沒拖動 = 點按 → 進入編輯模式
+    else { persist(); }         // 拖動結束存檔
   }
 
   canvas.addEventListener('pointerdown', onDown);
@@ -2789,7 +3026,7 @@ function renderLite(tempText){
   block.style.fontFamily=curFont;
   block.style.fontSize=getEditSize()+'px';
   block.style.color=getEditVisibleColor();
-  block.style.transform=`translate3d(${posX}px,${posY}px,0) scale(${autoScale||1})`;
+  block.style.transform=`translate(${posX}px,${posY}px) scale(${autoScale||1})`;
   const hasText=arr.join('').length>0;
   if(!hasText) arr=['輸入文字'];
   const renderArr = textDirection==='v' ? arr.slice().reverse() : arr;
