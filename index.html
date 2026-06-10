@@ -3360,19 +3360,22 @@ body.v18-editing .jelly-char,body.v18-editing .col{animation:none!important;}
     stage.addEventListener('pointerdown',function(e){
       if(e.target.closest && e.target.closest('#editPanel,#editSizeRail,#editTop')) return;
       pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
-      if(pts.size===1){ mode='drag'; moved=false; startX=e.clientX; startY=e.clientY; baseX=posX; baseY=posY; }
-      if(pts.size===2){ const c=center(); mode='pinch'; moved=true; startDist=dist(); startSize=getEditSize(); startCX=c.x; startCY=c.y; baseX=posX; baseY=posY; editFocusInput(); }
+      if(pts.size===1){ mode='drag'; moved=false; startX=e.clientX; startY=e.clientY; }
+      if(pts.size===2){ mode='pinch'; moved=true; startDist=dist(); startSize=getEditSize(); editFocusInput(); }
       try{stage.setPointerCapture(e.pointerId);}catch(_){}
       e.preventDefault();
     },{passive:false});
     stage.addEventListener('pointermove',function(e){
       if(!pts.has(e.pointerId)) return;
       pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
-      if(mode==='drag' && pts.size===1){ if(Math.abs(e.clientX-startX)>6||Math.abs(e.clientY-startY)>6) moved=true; posX=Math.round(baseX+(e.clientX-startX)/(autoScale||1)); posY=Math.round(baseY+(e.clientY-startY)/(autoScale||1)); renderLite(); }
-      if(mode==='pinch' && pts.size>=2){ const c=center(); const ratio=dist()/startDist; setEditSize(startSize*ratio,true); posX=Math.round(baseX+(c.x-startCX)/(autoScale||1)); posY=Math.round(baseY+(c.y-startCY)/(autoScale||1)); renderLite(); }
+      /* v67：IG 式編輯 —— 文字在編輯模式永遠置中，單指拖曳不移動文字（只用來判斷
+         是否為點按聚焦），雙指捏合只改字級。先前這裡會改全域 posX/posY，造成
+         編輯預覽被推離中心、還把位移漏回主畫面（版面跑掉的元兇之一）。 */
+      if(mode==='drag' && pts.size===1){ if(Math.abs(e.clientX-startX)>6||Math.abs(e.clientY-startY)>6) moved=true; }
+      if(mode==='pinch' && pts.size>=2){ const ratio=dist()/startDist; setEditSize(startSize*ratio,true); }
       e.preventDefault();
     },{passive:false});
-    function up(e){ pts.delete(e.pointerId); if(pts.size===0){ if(mode==='drag' && !moved){ editFocusInput(); } mode=''; } else if(pts.size===1){ const p=Array.from(pts.values())[0]; mode='drag'; moved=false; startX=p.x; startY=p.y; baseX=posX; baseY=posY; } }
+    function up(e){ pts.delete(e.pointerId); if(pts.size===0){ if(mode==='drag' && !moved){ editFocusInput(); } mode=''; } else if(pts.size===1){ const p=Array.from(pts.values())[0]; mode='drag'; moved=false; startX=p.x; startY=p.y; } }
     stage.addEventListener('pointerup',up); stage.addEventListener('pointercancel',up);
   }
   function fit(){ layoutEditOverlay(); }
@@ -3406,7 +3409,10 @@ body.v18-editing .jelly-char,body.v18-editing .col{animation:none!important;}
 .v19-caret{display:inline-block!important;width:3px!important;height:1.02em!important;min-height:22px!important;margin-left:.13em!important;vertical-align:-.16em!important;border-radius:3px!important;background:#4dd0ff!important;box-shadow:0 0 8px rgba(77,208,255,.95),0 0 18px rgba(77,208,255,.45)!important;animation:v19CaretBlink 1s steps(2,start) infinite!important;}
 #text-block.v18-lite-editing .v18-lite-line.is-placeholder .v19-caret{opacity:1!important;}
 @keyframes v19CaretBlink{0%,48%{opacity:1}49%,100%{opacity:.18}}
-#text-block.v18-lite-editing{max-width:82%!important;max-height:54%!important;overflow:visible!important;}
+#text-block.v18-lite-editing{max-width:82%!important;max-height:none!important;overflow:visible!important;flex-wrap:nowrap!important;}
+/* v67：flex-wrap:nowrap 是關鍵 —— 主畫面 #text-block 有 flex-wrap:wrap，編輯模式繼承後，
+   一旦內容高度超過容器（尤其鍵盤開啟、可視高度變小時），column 排版會把後面的行「換欄」
+   擠到右邊並排 = 版面整個跑掉的真因。改 nowrap 永遠直向堆疊，塞不下交給 fit-scale 縮小。 */
 </style>
 <style id="v20-ig-look">
 /* ===== 背景：接近純黑（更像 IG），僅保留極淡品牌光暈 ===== */
@@ -3455,17 +3461,33 @@ body.v18-editing .jelly-char,body.v18-editing .col{animation:none!important;}
     var source=v19TextValue(tempText);v19SyncLinesFromValue(source);
     var arr=String(source||'').replace(/\r/g,'').split('\n').slice(0,6);if(arr.length===0)arr=[''];
     var hasText=arr.join('').length>0;if(!hasText)arr=['輸入文字'];
+    /* v67：per-line 字體/字級/顏色。先把目前控制值（字型列/字級滑桿/顏色）寫回「選中行」
+       （與主畫面 render() 同一套規則，保留該行的位置/縮放/旋轉），再讓每一行各自用
+       lineStyles[i] 的 font/sz/color 來畫 —— 編輯預覽才會跟成品一樣每行不同字體。 */
+    try{
+      if(typeof ensureLineStyles==='function') ensureLineStyles();
+      if(typeof curGlobalStyle==='function' && typeof lineStyles!=='undefined' && typeof selLine!=='undefined'){
+        lineStyles[selLine]=Object.assign({}, lineStyles[selLine]||{}, curGlobalStyle());
+      }
+    }catch(e){}
     block.innerHTML='';block.classList.add('v18-lite-editing');block.classList.toggle('horizontal',typeof textDirection==='undefined'||textDirection==='h');block.classList.toggle('lite-vmode',typeof textDirection!=='undefined'&&textDirection==='v');
-    block.style.fontFamily=(typeof curFont==='string'&&curFont)?curFont:"-apple-system, BlinkMacSystemFont, 'PingFang TC', sans-serif";
-    block.style.fontSize=v19GetEditSize()+'px';block.style.color=v19GetVisibleColor();
-    var scale=(typeof autoScale==='number'&&autoScale>0)?autoScale:1;var x=(typeof posX==='number')?posX:0;var y=(typeof posY==='number')?posY:0;
-    block.style.transform='translate('+x+'px,'+y+'px) scale('+scale+')';
-    var horizontal=(typeof textDirection==='undefined'||textDirection==='h');var renderArr=arr; /* v30：直書欄序改由 CSS writing-mode 處理，不再手動反轉行序 */
+    var selSt=(typeof lineStyles!=='undefined'&&typeof selLine!=='undefined'&&lineStyles[selLine])?lineStyles[selLine]:null;
+    block.style.fontFamily=(selSt&&selSt.font)||((typeof curFont==='string'&&curFont)?curFont:"-apple-system, BlinkMacSystemFont, 'PingFang TC', sans-serif");
+    block.style.fontSize=((selSt&&typeof selSt.sz==='number')?selSt.sz:v19GetEditSize())+'px';
+    block.style.color=v19GetVisibleColor();
+    var renderArr=arr; /* v30：直書欄序改由 CSS writing-mode 處理，不再手動反轉行序 */
     var caretIdx=renderArr.length-1; /* 游標固定放最後一行（最後輸入處）*/
     var vmode=(typeof textDirection!=='undefined'&&textDirection==='v');
     for(var i=0;i<renderArr.length;i++){
       var line=document.createElement('div');line.className='v18-lite-line';
       if(!hasText)line.classList.add('is-placeholder');
+      /* v67：這一行自己的字體/字級/顏色（沒有就跟著選中行/全域） */
+      var st=(hasText&&typeof lineStyles!=='undefined')?lineStyles[i]:null;
+      if(st){
+        if(st.font) line.style.fontFamily=st.font;
+        if(typeof st.sz==='number') line.style.fontSize=st.sz+'px';
+        if(st.color) line.style.color=st.color;
+      }
       if(vmode){
         var chs=Array.from(renderArr[i]||'');if(chs.length===0)chs=[''];
         for(var c=0;c<chs.length;c++){var vc=document.createElement('span');vc.className='lite-vchar';vc.textContent=chs[c];line.appendChild(vc);}
@@ -3475,7 +3497,19 @@ body.v18-editing .jelly-char,body.v18-editing .col{animation:none!important;}
       if(i===caretIdx){var caret=document.createElement('span');caret.className='v19-caret';line.appendChild(caret);}
       block.appendChild(line);
     }
-    try{if(typeof applyPos==='function')applyPos();}catch(e){}
+    /* v67：IG 式置中 —— 編輯預覽永遠置中，不再套主畫面殘留的 translate(posX,posY)
+       與 autoScale（那會把預覽推離中心甚至推出框外 = 版面整個跑掉的真因）。
+       只做「塞不下就等比縮小」的 fit scale，flex 置中由 CSS 處理。 */
+    var fitS=1;
+    try{
+      var cv=document.getElementById('canvas');
+      if(cv){
+        var availW=cv.clientWidth*0.92, availH=cv.clientHeight*0.86;
+        var bw=Math.max(block.offsetWidth,block.scrollWidth), bh=Math.max(block.offsetHeight,block.scrollHeight);
+        if(bw>0&&bh>0&&availW>0&&availH>0) fitS=Math.min(1, availW/bw, availH/bh);
+      }
+    }catch(e){}
+    block.style.transform='scale('+(fitS>0?fitS:1)+')';
   };
   window.editFocusInput=function(){var input=document.getElementById('editInput');if(!input)return;try{input.focus();}catch(e){}try{var n=input.value.length;input.setSelectionRange(n,n);}catch(e){}setTimeout(function(){try{input.focus();}catch(e){}},0);};
   function bindV19Input(){var input=document.getElementById('editInput');if(!input||input.dataset.v19Bound==='1')return;input.dataset.v19Bound='1';var sync=function(){if(typeof editOpen!=='undefined'&&!editOpen)return;v19SyncLinesFromValue(input.value);window.renderLite(input.value);};['input','change','compositionstart','compositionupdate','compositionend','keyup','keydown'].forEach(function(ev){input.addEventListener(ev,function(){setTimeout(sync,0);},false);});}
