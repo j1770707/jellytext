@@ -3354,13 +3354,33 @@ body.v18-editing .jelly-char,body.v18-editing .col{animation:none!important;}
     if(!stage || stage.dataset.v18Bound==='1') return;
     stage.dataset.v18Bound='1';
     const pts=new Map();
-    let mode='', startX=0,startY=0,baseX=0,baseY=0,startDist=1,startSize=48,startCX=0,startCY=0,moved=false;
+    let mode='', startX=0,startY=0,baseX=0,baseY=0,startDist=1,startSize=48,startCX=0,startCY=0,moved=false,downLineIdx=-1;
     function dist(){const a=Array.from(pts.values()); if(a.length<2)return 1; return Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)||1;}
     function center(){const a=Array.from(pts.values()); if(a.length<2)return a[0]||{x:0,y:0}; return {x:(a[0].x+a[1].x)/2,y:(a[0].y+a[1].y)/2};}
+    /* v68：沒有直接點在字上時，找離點擊點最近的一行（56px 容差，照顧胖手指） */
+    function nearestLineIdx(x,y){
+      const block=document.getElementById('text-block');
+      if(!block||!block.classList.contains('v18-lite-editing'))return -1;
+      let best=-1,bd=1e9;
+      for(let i=0;i<block.children.length;i++){
+        const r=block.children[i].getBoundingClientRect();
+        const dx=x<r.left?r.left-x:(x>r.right?x-r.right:0);
+        const dy=y<r.top?r.top-y:(y>r.bottom?y-r.bottom:0);
+        const d=Math.hypot(dx,dy);
+        if(d<bd){bd=d;best=i;}
+      }
+      return bd<=56?best:-1;
+    }
     stage.addEventListener('pointerdown',function(e){
       if(e.target.closest && e.target.closest('#editPanel,#editSizeRail,#editTop')) return;
       pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
-      if(pts.size===1){ mode='drag'; moved=false; startX=e.clientX; startY=e.clientY; }
+      if(pts.size===1){
+        mode='drag'; moved=false; startX=e.clientX; startY=e.clientY;
+        /* v68：記住按下時點到哪一行（點到字、游標、逐字 span 都算） */
+        downLineIdx=-1;
+        const lt=e.target&&e.target.closest?e.target.closest('.v18-lite-line'):null;
+        if(lt&&lt.parentNode)downLineIdx=Array.prototype.indexOf.call(lt.parentNode.children,lt);
+      }
       if(pts.size===2){ mode='pinch'; moved=true; startDist=dist(); startSize=getEditSize(); editFocusInput(); }
       try{stage.setPointerCapture(e.pointerId);}catch(_){}
       e.preventDefault();
@@ -3375,7 +3395,12 @@ body.v18-editing .jelly-char,body.v18-editing .col{animation:none!important;}
       if(mode==='pinch' && pts.size>=2){ const ratio=dist()/startDist; setEditSize(startSize*ratio,true); }
       e.preventDefault();
     },{passive:false});
-    function up(e){ pts.delete(e.pointerId); if(pts.size===0){ if(mode==='drag' && !moved){ editFocusInput(); } mode=''; } else if(pts.size===1){ const p=Array.from(pts.values())[0]; mode='drag'; moved=false; startX=p.x; startY=p.y; } }
+    function up(e){ pts.delete(e.pointerId); if(pts.size===0){ if(mode==='drag' && !moved){
+        /* v68：純點按 → 選取點到的那一行（沒點到字就找最近的行） */
+        let idx=downLineIdx; if(idx<0) idx=nearestLineIdx(startX,startY);
+        if(idx>=0 && typeof window.v19TapSelectLine==='function'){ window.v19TapSelectLine(idx); }
+        else { editFocusInput(); }
+      } mode=''; downLineIdx=-1; } else if(pts.size===1){ const p=Array.from(pts.values())[0]; mode='drag'; moved=false; startX=p.x; startY=p.y; } }
     stage.addEventListener('pointerup',up); stage.addEventListener('pointercancel',up);
   }
   function fit(){ layoutEditOverlay(); }
@@ -3413,6 +3438,9 @@ body.v18-editing .jelly-char,body.v18-editing .col{animation:none!important;}
 /* v67：flex-wrap:nowrap 是關鍵 —— 主畫面 #text-block 有 flex-wrap:wrap，編輯模式繼承後，
    一旦內容高度超過容器（尤其鍵盤開啟、可視高度變小時），column 排版會把後面的行「換欄」
    擠到右邊並排 = 版面整個跑掉的真因。改 nowrap 永遠直向堆疊，塞不下交給 fit-scale 縮小。 */
+/* v68：選中行（正在編輯的那一行）的標記：橫書畫下底線、直書在欄左側畫一條線 */
+#text-block.v18-lite-editing .v18-lite-line.lite-sel{box-shadow:0 .1em 0 0 rgba(255,255,255,.32);border-radius:2px;}
+#text-block.v18-lite-editing.lite-vmode .v18-lite-line.lite-sel{box-shadow:-.1em 0 0 0 rgba(255,255,255,.32);}
 </style>
 <style id="v20-ig-look">
 /* ===== 背景：接近純黑（更像 IG），僅保留極淡品牌光暈 ===== */
@@ -3453,6 +3481,34 @@ body.v18-editing .jelly-char,body.v18-editing .col{animation:none!important;}
   function v19GetEditSize(){try{if(typeof getEditSize==='function')return getEditSize();}catch(e){}var el=document.getElementById('szSlider');var n=el?parseInt(el.value,10):56;return v19Clamp(Number.isFinite(n)?n:56,4,180);}
   function v19TextValue(tempText){if(typeof tempText==='string')return tempText;var input=document.getElementById('editInput');if(input&&typeof input.value==='string')return input.value;if(typeof lines!=='undefined'&&lines&&lines.join)return lines.join('\n');return '';}
   function v19SyncLinesFromValue(value){if(typeof lines==='undefined')return;var arr=String(value||'').replace(/\r/g,'').split('\n');arr=arr.slice(0,6).map(function(s){return Array.from(s).slice(0,25).join('');});if(arr.length===0)arr=[''];lines=arr;try{if(typeof offsets!=='undefined'){while(offsets.length<lines.length)offsets.push(0);offsets.length=lines.length;}}catch(e){}}
+  /* v68：點哪行就編輯哪行。統一規則 = 「選中行永遠跟著輸入框游標所在的那一行」。
+     點預覽某行 → 把游標移到該行行尾 → 選中行跟著切換（控制項同步成那行的字體/字級/顏色）；
+     打字按 Enter 換行時游標移到新行，選中行也自動跟過去 —— 你在打哪行就是在編輯哪行。 */
+  function v19CaretLine(){var input=document.getElementById('editInput');if(!input)return 0;var pos=(typeof input.selectionStart==='number')?input.selectionStart:String(input.value||'').length;var before=String(input.value||'').replace(/\r/g,'').slice(0,pos);return (before.match(/\n/g)||[]).length;}
+  window.v19SyncSelFromCaret=function(){
+    try{
+      if(typeof selLine==='undefined'||typeof lines==='undefined')return;
+      var li=v19CaretLine(); if(li>lines.length-1)li=lines.length-1; if(li<0)li=0;
+      if(li===selLine)return;
+      if(typeof ensureLineStyles==='function')ensureLineStyles();
+      if(typeof curGlobalStyle==='function'&&typeof lineStyles!=='undefined'){lineStyles[selLine]=Object.assign({},lineStyles[selLine]||{},curGlobalStyle());} /* 先存住舊行（保留位置/縮放/旋轉） */
+      selLine=li;
+      if(typeof applyLineToControls==='function')applyLineToControls(li);
+      var row=document.getElementById('editFontRow'); /* 同步編輯字型列高亮（不重建，避免捲動位置跳掉） */
+      if(row){var ck=(typeof curFontKey!=='undefined')?curFontKey:'';row.querySelectorAll('.ef-btn').forEach(function(b){b.classList.toggle('on', b.dataset.key===ck);});}
+    }catch(e){}
+  };
+  window.v19TapSelectLine=function(idx){
+    var input=document.getElementById('editInput'); if(!input)return;
+    var arr=String(input.value||'').replace(/\r/g,'').split('\n');
+    if(idx>arr.length-1)idx=arr.length-1; if(idx<0)idx=0;
+    var pos=arr.slice(0,idx+1).join('\n').length;   /* 該行行尾 */
+    try{input.focus();}catch(e){}
+    try{input.setSelectionRange(pos,pos);}catch(e){}
+    setTimeout(function(){try{input.focus();}catch(e){}},0);
+    window.v19SyncSelFromCaret();
+    window.renderLite(input.value);
+  };
   window.renderLite=function(tempText){
     /* v30：編輯模式已關閉就不准執行。否則按完成後收鍵盤觸發的 resize 會在 40ms 後
        呼叫 renderLite，把剛畫好的果凍 SVG 蓋回扁平預覽字（這就是「字體反白／變回原樣」的真因）。 */
@@ -3476,11 +3532,22 @@ body.v18-editing .jelly-char,body.v18-editing .col{animation:none!important;}
     block.style.fontSize=((selSt&&typeof selSt.sz==='number')?selSt.sz:v19GetEditSize())+'px';
     block.style.color=v19GetVisibleColor();
     var renderArr=arr; /* v30：直書欄序改由 CSS writing-mode 處理，不再手動反轉行序 */
-    var caretIdx=renderArr.length-1; /* 游標固定放最後一行（最後輸入處）*/
+    var caretIdx=renderArr.length-1;
+    /* v68：游標畫在「輸入框游標實際所在的那一行」，點選哪行游標就在哪行 */
+    try{
+      var cInp=document.getElementById('editInput');
+      if(hasText && cInp && typeof cInp.selectionStart==='number'){
+        var cBefore=String(cInp.value||'').replace(/\r/g,'').slice(0,cInp.selectionStart);
+        var cl=(cBefore.match(/\n/g)||[]).length;
+        caretIdx=Math.max(0,Math.min(renderArr.length-1,cl));
+      }
+    }catch(e){}
     var vmode=(typeof textDirection!=='undefined'&&textDirection==='v');
     for(var i=0;i<renderArr.length;i++){
       var line=document.createElement('div');line.className='v18-lite-line';
       if(!hasText)line.classList.add('is-placeholder');
+      /* v68：標記目前選中（正在編輯）的那一行 */
+      if(hasText&&typeof selLine!=='undefined'&&i===selLine)line.classList.add('lite-sel');
       /* v67：這一行自己的字體/字級/顏色（沒有就跟著選中行/全域） */
       var st=(hasText&&typeof lineStyles!=='undefined')?lineStyles[i]:null;
       if(st){
@@ -3512,7 +3579,7 @@ body.v18-editing .jelly-char,body.v18-editing .col{animation:none!important;}
     block.style.transform='scale('+(fitS>0?fitS:1)+')';
   };
   window.editFocusInput=function(){var input=document.getElementById('editInput');if(!input)return;try{input.focus();}catch(e){}try{var n=input.value.length;input.setSelectionRange(n,n);}catch(e){}setTimeout(function(){try{input.focus();}catch(e){}},0);};
-  function bindV19Input(){var input=document.getElementById('editInput');if(!input||input.dataset.v19Bound==='1')return;input.dataset.v19Bound='1';var sync=function(){if(typeof editOpen!=='undefined'&&!editOpen)return;v19SyncLinesFromValue(input.value);window.renderLite(input.value);};['input','change','compositionstart','compositionupdate','compositionend','keyup','keydown'].forEach(function(ev){input.addEventListener(ev,function(){setTimeout(sync,0);},false);});}
+  function bindV19Input(){var input=document.getElementById('editInput');if(!input||input.dataset.v19Bound==='1')return;input.dataset.v19Bound='1';var sync=function(){if(typeof editOpen!=='undefined'&&!editOpen)return;v19SyncLinesFromValue(input.value);window.v19SyncSelFromCaret();/* v68：游標換行 → 選中行跟著走 */window.renderLite(input.value);};['input','change','compositionstart','compositionupdate','compositionend','keyup','keydown'].forEach(function(ev){input.addEventListener(ev,function(){setTimeout(sync,0);},false);});}
   var oldLayout=window.layoutEditOverlay;
   window.layoutEditOverlay=function(){if(typeof oldLayout==='function'){try{oldLayout();}catch(e){}}var ov=document.getElementById('editOverlay');if(!ov||(typeof editOpen!=='undefined'&&!editOpen))return;if(window.visualViewport){ov.style.top=(window.visualViewport.offsetTop||0)+'px';ov.style.height=(window.visualViewport.height||window.innerHeight)+'px';}var panel=document.getElementById('editPanel');if(panel)panel.style.maxHeight='112px';try{if(typeof updateEditSizeRail==='function')updateEditSizeRail();}catch(e){}};
   bindV19Input();
