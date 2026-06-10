@@ -314,6 +314,9 @@ body::after {
   width: 100%; height: 100%;
   display: flex; align-items: center; justify-content: center;
   padding: 30px;
+  /* v65：主畫面整塊 canvas 都吃掉瀏覽器原生觸控手勢（含雙指縮放/捲動），
+     否則手指落在文字以外的空白處時，原生 pinch-zoom 會跟 JS 搶事件 → 縮放卡頓不流暢。 */
+  touch-action: none;
 }
 /* v36：要讓預覽區「正中央是線、不是格子」。把每格的線畫在格子正中央
    （前半格透明 → 1px 線 → 後半格透明），再用 background-position:center，
@@ -2121,7 +2124,10 @@ function setDirection(dir, btn){
 function applyGaps(){
  try{
   ensureLineStyles();
-  lineStyles[selLine]=curGlobalStyle();   // 字距變更也即時寫回選中行
+  // v65：只把「來自右側控制」的欄位寫回選中行，務必保留它的位置/縮放/旋轉（lpx/lpy/lscale/lrot）。
+  // 舊版這裡整包換成 curGlobalStyle() → 每次 render 都會把選中行的旋轉/縮放清成預設，
+  // 導致一拖某行(它變選中行)就先彈回水平、雙指縮放起手也會先跳回原大小。
+  lineStyles[selLine]=Object.assign({}, lineStyles[selLine]||{}, curGlobalStyle());
   const lg=parseInt(document.getElementById('letterGap').value);
   const cg=parseInt(document.getElementById('colGap').value);
   const block=document.getElementById('text-block');
@@ -2749,6 +2755,22 @@ window.addEventListener('resize', ()=>{
     el.classList.add('show');
   }
 
+  // v66：雙指旋轉吸附線——轉到水平/垂直時，穿過「被旋轉那一行的中心」亮一條對應方向的線。
+  // dir 為 null 表示本幀沒吸附 → 把線收掉。線是動態建立、掛在 guideLayer 上，
+  // hideGuides() 會一併隱藏（它掃的是所有 .guide-line）。
+  function showRotSnapGuide(dir){
+    guideLayer.querySelectorAll('.rot-snap').forEach(g=>g.classList.remove('show'));
+    if(!dir) return;
+    const col=block.querySelector('.col[data-line-idx="'+selLine+'"]');
+    if(!col) return;
+    let el=guideLayer.querySelector('.rot-snap.'+dir);
+    if(!el){ el=document.createElement('div'); el.className='guide-line rot-snap '+dir+' center'; guideLayer.appendChild(el); }
+    const r=col.getBoundingClientRect(), gr=guideLayer.getBoundingClientRect();
+    if(dir==='h'){ el.style.top =(((r.top+r.bottom)/2)-gr.top )+'px'; }
+    else         { el.style.left=(((r.left+r.right)/2)-gr.left)+'px'; }
+    el.classList.add('show');
+  }
+
   // v63：找出某螢幕座標下是哪一行的字（用 .col 的 lineIdx）。guideLayer 是 pointer-events:none，
   // 不會擋住命中測試；按到空白處回傳 null（維持目前選中行，仍可在空白拖曳）。
   function lineIdxAtPoint(x,y){
@@ -2783,6 +2805,7 @@ window.addEventListener('resize', ()=>{
       pinchStartCx=(a[0].x+a[1].x)/2; pinchStartCy=(a[0].y+a[1].y)/2;
       pinchBaseX=_ps.lpx||0; pinchBaseY=_ps.lpy||0;
       canvas.classList.remove('dragging');
+      hideGuides();   // v66.1：收掉單指拖曳殘留的網格吸附線，否則會跟旋轉吸附線同時亮成兩三條
       e.preventDefault();
       return;
     }
@@ -2810,12 +2833,25 @@ window.addEventListener('resize', ()=>{
       let nsc=pinchStartScale*(d/pinchStartDist);
       nsc=Math.max(0.2,Math.min(4,nsc));
       const st=lineStyles[selLine];
+      let rotSnapDir=null;   // v66：本幀是否吸附到水平/垂直（'h'/'v'），決定要亮哪條線
       if(st){
         st.lscale=nsc;
         // 旋轉：兩指連線角度的變化量，加到該行起始旋轉
         const ang=Math.atan2(a[1].y-a[0].y, a[1].x-a[0].x);
         let deg=pinchStartRot + (ang-pinchStartAngle)*180/Math.PI;
         deg=((deg%360)+360)%360;
+        /* v66：旋轉吸附——接近 0/90/180/270 度（±ROT_SNAP 度內）就卡到正角度，
+           做出「轉到水平/垂直會卡一下」的手感，並亮出對應方向的參考線。
+           吸附線方向跟著「視覺方向」走：橫書 0/180=水平線、90/270=垂直線；
+           直書的行本身是直的，0/180 反而是垂直線。 */
+        const ROT_SNAP=6;
+        const near=Math.round(deg/90)*90;
+        if(Math.abs(deg-near)<=ROT_SNAP){
+          deg=((near%360)+360)%360;
+          const flat=(deg===0||deg===180);   // 行回到自然方向
+          rotSnapDir = (textDirection==='v') ? (flat?'v':'h') : (flat?'h':'v');
+          if(navigator.vibrate){ if(!onMove._lastSnap || onMove._lastSnap!==deg){ try{navigator.vibrate(10);}catch(_){}} onMove._lastSnap=deg; }
+        } else { onMove._lastSnap=null; }
         st.lrot=deg;
         // 平移：兩指中心位移
         const cx=(a[0].x+a[1].x)/2, cy=(a[0].y+a[1].y)/2;
@@ -2823,7 +2859,8 @@ window.addEventListener('resize', ()=>{
         st.lpx=Math.round(pinchBaseX+(cx-pinchStartCx)/sc);
         st.lpy=Math.round(pinchBaseY+(cy-pinchStartCy)/sc);
       }
-      applyLineTransforms(); syncLineXformControls();
+      applyLineTransforms(); updatePosReadout();
+      showRotSnapGuide(rotSnapDir);
       e.preventDefault();
       return;
     }
@@ -2896,7 +2933,7 @@ window.addEventListener('resize', ()=>{
     if(pointerId!=null && canvas.releasePointerCapture){ try{ canvas.releasePointerCapture(pointerId); }catch(_){} }
     pointerId = null;
     if(!moved){ openEdit(); }   // 沒拖動 = 點按 → 進入編輯模式
-    else { persist(); }         // 拖動結束存檔
+    else { syncLineXformControls(); persist(); }   // 拖動結束：同步滑桿(縮放/旋轉/位置)並存檔
   }
 
   canvas.addEventListener('pointerdown', onDown);
