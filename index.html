@@ -2789,11 +2789,12 @@ window.addEventListener('resize', ()=>{
       if(li!=null && li!==selLine){ setSelLine(li); }
     }
     if(ptrs.size>=2){
-      /* 第二指落下 → 雙指縮放。
-         關鍵：先放掉第一指的 pointer capture，否則 capture 會把所有 pointer 事件
-         獨佔導向第一指，第二指的 move 收不到，pinch 永遠算不出距離變化。 */
-      if(pointerId!=null && canvas.releasePointerCapture){ try{ canvas.releasePointerCapture(pointerId); }catch(_){} }
+      /* v69：第二指落下 → 雙指縮放。把「兩根手指都」capture 到 canvas。
+         pointer capture 是按 pointerId 各自獨立的，capture 第一指並不會擋住第二指；
+         兩指都 capture 之後，任一指中途滑出 canvas（或本來就從面板上落下）move/up
+         仍會送進來，pinch 全程不中斷 —— 拖曳中補上第二指才會順。 */
       pointerId=null;
+      for(const pid of ptrs.keys()){ try{ canvas.setPointerCapture(pid); }catch(_){} }
       pinching=true; dragging=false; moved=true;
       const a=[...ptrs.values()];
       pinchStartDist=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)||1;
@@ -2865,6 +2866,9 @@ window.addEventListener('resize', ()=>{
       return;
     }
     if(!dragging) return;
+    /* v69：只認「正在拖曳的那根手指」。否則第二指滑過 canvas 時，它的 move 也會進到
+       這裡，用第二指的座標減第一指的起點算位移 → 行在兩指之間瞬移亂跳（失控的主因）。 */
+    if(pointerId!=null && e.pointerId!==pointerId) return;
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
     if(Math.abs(dx)>3 || Math.abs(dy)>3){
@@ -2940,6 +2944,15 @@ window.addEventListener('resize', ()=>{
   canvas.addEventListener('pointermove', onMove);
   canvas.addEventListener('pointerup', onUp);
   canvas.addEventListener('pointercancel', onUp);
+  /* v69：單指正在拖曳時，第二指落在 canvas「外面」（拇指常落在下方控制面板）也收編
+     進 pinch。沒有這段的話：第二指收不到 → pinch 起不來，還會觸發頁面原生捲動/縮放，
+     畫面就跟著「失控」。收編後 onDown 會把兩指都 capture 到 canvas，後續 move/up 正常進來。 */
+  document.addEventListener('pointerdown', function(e){
+    if(editOpen) return;
+    if(!dragging || pinching) return;                  // 只在單指拖曳進行中才收編
+    if(e.target && e.target.closest && e.target.closest('#canvas')) return;   // 落在 canvas 內走原本流程
+    onDown(e);
+  }, {passive:false});
 })();
 
 // 點預覽 → 浮動輸入框
